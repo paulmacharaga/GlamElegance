@@ -2,6 +2,18 @@ const express = require('express');
 const User = require('../models/User');
 const router = express.Router();
 
+// Simple ping test
+router.get('/ping', (req, res) => {
+  console.log('Ping request received from:', req.headers.origin || 'unknown origin');
+  res.json({
+    success: true,
+    message: 'API is accessible',
+    timestamp: new Date().toISOString(),
+    origin: req.headers.origin,
+    userAgent: req.headers['user-agent']
+  });
+});
+
 // Test database connection and user lookup
 router.get('/db-connection', async (req, res) => {
   try {

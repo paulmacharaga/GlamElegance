@@ -169,13 +169,7 @@ const AdminLogin = () => {
               </Box>
             </form>
 
-            <Alert severity="info" sx={{ mt: 3 }}>
-              <Typography variant="body2">
-                <strong>Demo Credentials:</strong><br />
-                Username: admin<br />
-                Password: admin123
-              </Typography>
-            </Alert>
+
           </CardContent>
         </Card>
       </Container>

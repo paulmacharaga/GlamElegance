@@ -1,12 +1,28 @@
 import axios from 'axios';
 
+// Determine base URL for API calls
+const getBaseURL = () => {
+  // Check for explicit environment variable first
+  if (process.env.REACT_APP_API_URL) {
+    console.log('Using REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+    return process.env.REACT_APP_API_URL;
+  }
+
+  // In production, use same domain
+  if (process.env.NODE_ENV === 'production') {
+    const baseURL = window.location.origin;
+    console.log('Production mode - using same origin:', baseURL);
+    return baseURL;
+  }
+
+  // Development mode
+  console.log('Development mode - using localhost:5001');
+  return 'http://localhost:5001';
+};
+
 // Create axios instance with proper configuration
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || (
-    process.env.NODE_ENV === 'production' 
-      ? window.location.origin  // Use same domain in production
-      : 'http://localhost:5001'  // Use localhost in development
-  ),
+  baseURL: getBaseURL(),
   timeout: 30000, // 30 second timeout for serverless functions
   headers: {
     'Content-Type': 'application/json',
@@ -16,6 +32,14 @@ const api = axios.create({
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
+    // Debug logging
+    console.log('API Request:', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      baseURL: config.baseURL,
+      fullURL: `${config.baseURL}${config.url}`
+    });
+
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -23,6 +47,7 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
+    console.error('Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
