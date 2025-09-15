@@ -4,7 +4,7 @@
   "outputDirectory": "client/build",
   "functions": {
     "api/*.js": {
-      "runtime": "nodejs20.x"
+      "runtime": "@vercel/node@3.1.0"
     }
   },
   "rewrites": [
