@@ -36,7 +36,7 @@ const AdminLogin = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.username || !formData.password) {
       toast.error('Please fill in all fields');
       return;
@@ -44,19 +44,38 @@ const AdminLogin = () => {
 
     setLoading(true);
     try {
-      const response = await api.post('/api/auth/login', formData);
-      
+      console.log('🚀 Starting login attempt...');
+      console.log('Form data:', { username: formData.username, password: '***' });
+
+      // Try with fetch first as a fallback
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response ok:', response.ok);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Login failed');
+      }
+
+      const data = await response.json();
+      console.log('✅ Login successful:', { hasToken: !!data.token, user: data.user });
+
       // Store token in localStorage
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
-      
-      // Token is automatically handled by the API interceptor
-      
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+
       toast.success('Login successful!');
       navigate('/admin/dashboard');
     } catch (error) {
-      console.error('Login error:', error);
-      const message = error.response?.data?.message || 'Login failed';
+      console.error('❌ Login error:', error);
+      const message = error.message || 'Login failed';
       toast.error(message);
     } finally {
       setLoading(false);
