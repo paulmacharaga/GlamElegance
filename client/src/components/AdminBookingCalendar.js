@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -54,7 +54,7 @@ const AdminBookingCalendar = () => {
 
   useEffect(() => {
     fetchBookings();
-  }, [currentDate, selectedStaff]);
+  }, [currentDate, selectedStaff, fetchBookings]);
 
   const fetchStaff = async () => {
     try {
@@ -66,17 +66,17 @@ const AdminBookingCalendar = () => {
     }
   };
 
-  const fetchBookings = async () => {
+  const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {
       const startDate = startOfWeek.format('YYYY-MM-DD');
       const endDate = endOfWeek.format('YYYY-MM-DD');
-      
+
       let url = `/api/bookings?startDate=${startDate}&endDate=${endDate}`;
       if (selectedStaff) {
         url += `&stylist=${selectedStaff}`;
       }
-      
+
       const response = await axios.get(url);
       setBookings(response.data.bookings);
       setError(null);
@@ -87,7 +87,7 @@ const AdminBookingCalendar = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [startOfWeek, endOfWeek, selectedStaff]);
 
   const handlePreviousWeek = () => {
     setCurrentDate(currentDate.subtract(1, 'week'));

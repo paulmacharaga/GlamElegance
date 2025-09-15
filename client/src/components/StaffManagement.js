@@ -26,11 +26,7 @@ import {
   Avatar,
   Tabs,
   Tab,
-  Autocomplete,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem
+  Autocomplete
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -174,12 +170,7 @@ const StaffManagement = () => {
   const handleOpenEditDialog = (staffMember) => {
     setDialogMode('edit');
     setCurrentStaff(staffMember);
-    
-    // Find the full service objects that match the IDs in staffMember.services
-    const selectedServices = services.filter(service => 
-      staffMember.services.some(id => id === service._id || id._id === service._id)
-    );
-    
+
     setFormData({
       name: staffMember.name,
       title: staffMember.title || 'Stylist',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -36,9 +36,9 @@ const QRGenerator = () => {
 
     axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     generateQRCode();
-  }, [navigate]);
+  }, [navigate, generateQRCode]);
 
-  const generateQRCode = async () => {
+  const generateQRCode = useCallback(async () => {
     setLoading(true);
     try {
       const response = await axios.get('/api/qr/generate');
@@ -48,14 +48,14 @@ const QRGenerator = () => {
     } catch (error) {
       console.error('Failed to generate QR code:', error);
       toast.error('Failed to generate QR code');
-      
+
       if (error.response?.status === 401) {
         navigate('/admin');
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate]);
 
   const downloadQRCode = () => {
     if (!qrCode) return;

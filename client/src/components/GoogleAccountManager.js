@@ -20,7 +20,7 @@ import {
   Alert,
   CircularProgress
 } from '@mui/material';
-import { Google, Delete, Add, Link } from '@mui/icons-material';
+import { Google, Delete, Link } from '@mui/icons-material';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import GoogleAuthButton from './GoogleAuthButton';

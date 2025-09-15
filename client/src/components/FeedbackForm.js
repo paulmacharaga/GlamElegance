@@ -19,7 +19,7 @@ import {
   CircularProgress,
   IconButton
 } from '@mui/material';
-import { ArrowBack, Star, Feedback as FeedbackIcon } from '@mui/icons-material';
+import { ArrowBack, Feedback as FeedbackIcon } from '@mui/icons-material';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 

@@ -33,8 +33,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  FilterList as FilterIcon,
-  Sort as SortIcon
+  FilterList as FilterIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import toast from 'react-hot-toast';

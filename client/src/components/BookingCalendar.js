@@ -1,15 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
   Paper,
   Grid,
-  Button,
   Chip,
   CircularProgress,
   Alert,
-  IconButton,
-  Tooltip
+  IconButton
 } from '@mui/material';
 import {
   ArrowBack,
@@ -61,9 +59,9 @@ const BookingCalendar = ({ onSelectTimeSlot, selectedService, selectedStaff }) =
   // Fetch available slots for the current week
   useEffect(() => {
     fetchAvailableSlots();
-  }, [currentDate, selectedService, selectedStaff]);
+  }, [currentDate, selectedService, selectedStaff, fetchAvailableSlots]);
 
-  const fetchAvailableSlots = async () => {
+  const fetchAvailableSlots = useCallback(async () => {
     if (!weekDates.length) return;
 
     setLoading(true);
@@ -94,7 +92,7 @@ const BookingCalendar = ({ onSelectTimeSlot, selectedService, selectedStaff }) =
     } finally {
       setLoading(false);
     }
-  };
+  }, [weekDates, selectedService, selectedStaff]);
 
   const handleDateClick = (date) => {
     setSelectedDate(date);
