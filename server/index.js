@@ -19,6 +19,7 @@ const googleTokenRoutes = require('./routes/googleToken');
 const serviceRoutes = require('./routes/services');
 const staffRoutes = require('./routes/staff');
 const loyaltyRoutes = require('./routes/loyalty');
+const testRoutes = require('./routes/test');
 
 // Environment variables are already loaded by load-env.js
 
@@ -103,6 +104,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/loyalty', loyaltyRoutes);
+app.use('/api/test', testRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
