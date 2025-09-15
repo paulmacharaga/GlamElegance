@@ -8,9 +8,8 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && npm run dev",
     "client": "cd client && npm start",
-    "build": "cd client && npm run build",
+    "build": "node vercel-build.js",
     "install-all": "npm install && cd server && npm install && cd ../client && npm install",
-    "vercel-build": "npm run install-all && npm run build",
     "start": "cd server && npm start"
   },
   "keywords": ["glam-elegance", "beauty-salon", "qr-code", "booking", "reviews"],
