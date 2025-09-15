@@ -102,14 +102,19 @@ router.post('/test-login', async (req, res) => {
     const { username, password } = req.body;
     console.log('Testing login for:', username);
     
-    // Find user
-    const user = await User.findOne({
-      $or: [{ username }, { email: username }],
-      isActive: true
+    // Find user with Prisma
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: username },
+          { email: username }
+        ],
+        isActive: true
+      }
     });
-    
+
     console.log('User found:', !!user);
-    
+
     if (!user) {
       return res.json({
         success: false,
@@ -117,9 +122,9 @@ router.post('/test-login', async (req, res) => {
         searchedFor: username
       });
     }
-    
-    // Test password
-    const isMatch = await user.comparePassword(password);
+
+    // Test password with bcrypt
+    const isMatch = await bcrypt.compare(password, user.password);
     console.log('Password match:', isMatch);
     
     res.json({
