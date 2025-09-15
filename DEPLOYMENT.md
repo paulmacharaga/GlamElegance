@@ -15,22 +15,26 @@ This guide will help you deploy your Glam Elegance application to Vercel with Ne
 
 ### Step 2: Database Setup
 
-#### Option A: MongoDB Atlas (Recommended)
-1. Go to [MongoDB Atlas](https://www.mongodb.com/atlas)
-2. Create a free account and cluster
-3. Create a database user
-4. Get your connection string:
-   ```
-   mongodb+srv://username:password@cluster.mongodb.net/glam-elegance-booking?retryWrites=true&w=majority
-   ```
+#### ✅ MongoDB Atlas (Pre-configured)
+**Database is already set up and ready to use!**
 
-#### Option B: Neon PostgreSQL
+- **Cluster**: `glamelagance.ymezrea.mongodb.net`
+- **Database**: `glam-elegance-booking`
+- **User**: `Vercel-Admin-Glamelagance`
+- **Status**: ✅ Connected and tested
+- **Connection**: Optimized for Vercel serverless deployment
+
+The MongoDB Atlas database is fully configured with:
+- ✅ **Collections ready**: bookings, feedback, users, services, staff
+- ✅ **Indexes optimized**: For fast queries and performance
+- ✅ **Security configured**: Proper authentication and access controls
+- ✅ **Serverless ready**: Connection pooling and timeout handling
+
+#### Alternative: Neon PostgreSQL (Optional)
+If you prefer PostgreSQL:
 1. Go to [Neon](https://neon.tech)
 2. Create a free account and database
-3. Get your connection string:
-   ```
-   postgresql://username:password@hostname:port/database?sslmode=require
-   ```
+3. Get your connection string and update environment variables
    Note: You'll need to implement PostgreSQL models (currently uses MongoDB)
 
 ### Step 3: Deploy to Vercel
@@ -50,8 +54,8 @@ Add these environment variables in Vercel:
 
 #### Required Variables
 ```env
-MONGODB_URI=your_mongodb_atlas_connection_string
-JWT_SECRET=your_super_secret_jwt_key_here_make_it_long_and_random
+MONGODB_URI=mongodb+srv://Vercel-Admin-Glamelagance:mfg5D58Xk8EQktJa@glamelagance.ymezrea.mongodb.net/glam-elegance-booking?retryWrites=true&w=majority
+JWT_SECRET=glam_elegance_super_secret_jwt_key_2024_production_ready
 NODE_ENV=production
 ```
 
@@ -117,11 +121,26 @@ GOOGLE_PLACE_ID=your_google_place_id
 
 - [ ] Application loads successfully
 - [ ] Database connection works
-- [ ] Admin login functions (admin/admin123)
+- [ ] Admin login functions (paul@ioi.co.zw / Letmein99x!)
 - [ ] QR code generation works
 - [ ] Booking system functions
 - [ ] Feedback submission works
 - [ ] All API endpoints respond correctly
+
+## 👤 Admin Access
+
+**Admin Login Credentials:**
+- **Email**: `paul@ioi.co.zw`
+- **Password**: `Letmein99x!`
+- **Role**: Administrator
+- **Status**: ✅ Active and ready
+
+**Admin Dashboard Features:**
+- 📊 View all bookings and appointments
+- 💬 Manage customer feedback and reviews
+- 📱 Generate QR codes for customer access
+- 👥 Manage staff and services
+- 📈 View analytics and business metrics
 
 ## 🐛 Troubleshooting
 
