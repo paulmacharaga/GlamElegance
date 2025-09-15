@@ -1,13 +1,8 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const Booking = require('../models/Booking');
-const Service = require('../models/Service');
-const Analytics = require('../models/Analytics');
-const LoyaltyProgram = require('../models/LoyaltyProgram');
-const CustomerLoyalty = require('../models/CustomerLoyalty');
+const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
 const { sendBookingConfirmation } = require('../utils/email');
-const mongoose = require('mongoose');
 
 const router = express.Router();
 
@@ -138,57 +133,84 @@ router.post('/', [
 router.get('/', auth, async (req, res) => {
   try {
     const { page = 1, limit = 10, status, date, startDate, endDate, stylist } = req.query;
-    
-    const query = {};
-    if (status) query.status = status;
-    
+
+    // Build Prisma where clause
+    const where = {};
+
+    if (status) {
+      where.status = status;
+    }
+
     // Handle date filtering
     if (startDate && endDate) {
-      // Date range filtering for calendar view
       const start = new Date(startDate);
       const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999); // Include the entire end date
-      
+      end.setHours(23, 59, 59, 999);
+
       if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-        query.appointmentDate = { $gte: start, $lte: end };
+        where.appointmentDate = {
+          gte: start,
+          lte: end
+        };
       }
     } else if (date) {
-      // Single date filtering
       const startDate = new Date(date);
       const endDate = new Date(date);
       endDate.setDate(endDate.getDate() + 1);
-      query.appointmentDate = { $gte: startDate, $lt: endDate };
+      where.appointmentDate = {
+        gte: startDate,
+        lt: endDate
+      };
     }
-    
-    // Filter by stylist if provided
+
     if (stylist) {
-      query.stylist = stylist;
+      where.stylist = stylist;
     }
 
     // Determine if we should use pagination
     const usePagination = !startDate || !endDate;
-    
-    let bookingsQuery = Booking.find(query)
-      .populate('service', 'name description duration price category')
-      .sort({ createdAt: -1, appointmentDate: 1, appointmentTime: 1 });
 
-    // Apply pagination only when not in calendar view mode
-    if (usePagination) {
-      bookingsQuery = bookingsQuery.limit(limit * 1).skip((page - 1) * limit);
-    }
+    // Get bookings with Prisma
+    const bookings = await prisma.booking.findMany({
+      where,
+      include: {
+        service: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            duration: true,
+            price: true,
+            category: true
+          }
+        }
+      },
+      orderBy: [
+        { createdAt: 'desc' },
+        { appointmentDate: 'asc' },
+        { appointmentTime: 'asc' }
+      ],
+      ...(usePagination && {
+        take: parseInt(limit),
+        skip: (parseInt(page) - 1) * parseInt(limit)
+      })
+    });
 
-    const bookings = await bookingsQuery;
-    const total = await Booking.countDocuments(query);
+    const total = await prisma.booking.count({ where });
 
     res.json({
       bookings,
-      totalPages: usePagination ? Math.ceil(total / limit) : 1,
-      currentPage: usePagination ? page : 1,
+      totalPages: usePagination ? Math.ceil(total / parseInt(limit)) : 1,
+      currentPage: usePagination ? parseInt(page) : 1,
       total
     });
   } catch (error) {
     console.error('Get bookings error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({
+      message: 'Server error',
+      error: error.message,
+      stack: error.stack
+    });
   }
 });
 

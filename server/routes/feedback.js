@@ -1,7 +1,6 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const Feedback = require('../models/Feedback');
-const Analytics = require('../models/Analytics');
+const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
@@ -73,27 +72,33 @@ router.post('/', [
 router.get('/', auth, async (req, res) => {
   try {
     const { page = 1, limit = 10, rating, service } = req.query;
-    
-    const query = {};
-    if (rating) query.rating = parseInt(rating);
-    if (service) query.service = service;
 
-    const feedback = await Feedback.find(query)
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+    const where = {};
+    if (rating) where.rating = parseInt(rating);
+    if (service) where.service = service;
 
-    const total = await Feedback.countDocuments(query);
+    const feedback = await prisma.feedback.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit),
+      skip: (parseInt(page) - 1) * parseInt(limit)
+    });
+
+    const total = await prisma.feedback.count({ where });
 
     res.json({
       feedback,
-      totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      totalPages: Math.ceil(total / parseInt(limit)),
+      currentPage: parseInt(page),
       total
     });
   } catch (error) {
     console.error('Get feedback error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({
+      message: 'Server error',
+      error: error.message,
+      stack: error.stack
+    });
   }
 });
 
