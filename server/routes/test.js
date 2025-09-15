@@ -14,6 +14,22 @@ router.get('/ping', (req, res) => {
   });
 });
 
+// Environment variables test
+router.get('/env-check', (req, res) => {
+  console.log('Environment check requested');
+  res.json({
+    success: true,
+    message: 'Environment variables check',
+    timestamp: new Date().toISOString(),
+    env: {
+      NODE_ENV: process.env.NODE_ENV,
+      MONGODB_URI: process.env.MONGODB_URI ? 'SET' : 'NOT SET',
+      JWT_SECRET: process.env.JWT_SECRET ? 'SET' : 'NOT SET',
+      DATABASE_URL: process.env.DATABASE_URL ? 'SET' : 'NOT SET'
+    }
+  });
+});
+
 // Test POST endpoint for browser testing
 router.post('/browser-test', (req, res) => {
   console.log('Browser test request received from:', req.headers.origin || 'unknown origin');
