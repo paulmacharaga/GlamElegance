@@ -148,7 +148,7 @@ router.get('/', auth, async (req, res) => {
       end.setHours(23, 59, 59, 999);
 
       if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-        where.appointmentDate = {
+        where.bookingDate = {
           gte: start,
           lte: end
         };
@@ -157,7 +157,7 @@ router.get('/', auth, async (req, res) => {
       const startDate = new Date(date);
       const endDate = new Date(date);
       endDate.setDate(endDate.getDate() + 1);
-      where.appointmentDate = {
+      where.bookingDate = {
         gte: startDate,
         lt: endDate
       };
@@ -187,8 +187,8 @@ router.get('/', auth, async (req, res) => {
       },
       orderBy: [
         { createdAt: 'desc' },
-        { appointmentDate: 'asc' },
-        { appointmentTime: 'asc' }
+        { bookingDate: 'asc' },
+        { bookingTime: 'asc' }
       ],
       ...(usePagination && {
         take: parseInt(limit),
