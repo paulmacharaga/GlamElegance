@@ -111,7 +111,7 @@ const AdminDashboard = () => {
 
   const updateBookingStatus = async (bookingId, status) => {
     try {
-      await axios.patch(`/api/bookings/${bookingId}/status`, { status });
+      await api.patch(`/api/bookings/${bookingId}/status`, { status });
       toast.success('Booking status updated');
       loadDashboardData();
     } catch (error) {
