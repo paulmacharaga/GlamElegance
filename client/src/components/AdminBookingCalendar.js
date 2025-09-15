@@ -48,14 +48,6 @@ const AdminBookingCalendar = () => {
     '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'
   ];
 
-  useEffect(() => {
-    fetchStaff();
-  }, []);
-
-  useEffect(() => {
-    fetchBookings();
-  }, [currentDate, selectedStaff, fetchBookings]);
-
   const fetchStaff = async () => {
     try {
       const response = await axios.get('/api/staff');
@@ -88,6 +80,14 @@ const AdminBookingCalendar = () => {
       setLoading(false);
     }
   }, [startOfWeek, endOfWeek, selectedStaff]);
+
+  useEffect(() => {
+    fetchStaff();
+  }, []);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [currentDate, selectedStaff, fetchBookings]);
 
   const handlePreviousWeek = () => {
     setCurrentDate(currentDate.subtract(1, 'week'));
