@@ -87,36 +87,25 @@ GOOGLE_PLACE_ID=your_google_place_id
 ```json
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "client/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build"
-      }
-    },
-    {
-      "src": "server/index.js",
-      "use": "@vercel/node"
-    }
-  ],
+  "buildCommand": "npm run vercel-build",
+  "outputDirectory": "client/build",
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/server/index.js"
+      "dest": "/api/index.js"
     },
     {
       "src": "/(.*)",
       "dest": "/client/build/$1"
     }
   ],
-  "env": {
-    "NODE_ENV": "production"
-  },
   "functions": {
-    "server/index.js": {
+    "api/index.js": {
       "maxDuration": 30
     }
+  },
+  "env": {
+    "NODE_ENV": "production"
   }
 }
 ```
@@ -146,7 +135,8 @@ GOOGLE_PLACE_ID=your_google_place_id
 
 3. **API Routes Not Working**
    - Check vercel.json routing configuration
-   - Verify server/index.js exports the app correctly
+   - Verify api/index.js correctly imports server/index.js
+   - Ensure server/index.js exports the app correctly
 
 4. **Environment Variables Not Loading**
    - Double-check variable names in Vercel dashboard
