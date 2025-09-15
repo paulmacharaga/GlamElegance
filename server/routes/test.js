@@ -95,4 +95,59 @@ router.post('/test-login', async (req, res) => {
   }
 });
 
+// Create admin user for production
+router.post('/create-admin', async (req, res) => {
+  try {
+    console.log('Creating admin user...');
+
+    // Check if admin already exists
+    const existingAdmin = await User.findOne({ email: 'paul@ioi.co.zw' });
+    if (existingAdmin) {
+      return res.json({
+        success: false,
+        message: 'Admin user already exists',
+        user: {
+          email: existingAdmin.email,
+          username: existingAdmin.username,
+          name: existingAdmin.name,
+          role: existingAdmin.role,
+          isActive: existingAdmin.isActive
+        }
+      });
+    }
+
+    // Create admin user
+    const adminUser = new User({
+      username: 'paul',
+      email: 'paul@ioi.co.zw',
+      password: 'Letmein99x!',
+      name: 'Paul Macharaga',
+      role: 'admin',
+      isActive: true
+    });
+
+    await adminUser.save();
+    console.log('Admin user created successfully');
+
+    res.json({
+      success: true,
+      message: 'Admin user created successfully',
+      user: {
+        email: adminUser.email,
+        username: adminUser.username,
+        name: adminUser.name,
+        role: adminUser.role,
+        isActive: adminUser.isActive
+      }
+    });
+  } catch (error) {
+    console.error('Admin creation error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
 module.exports = router;
