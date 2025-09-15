@@ -181,7 +181,7 @@ router.get('/', auth, async (req, res) => {
             description: true,
             duration: true,
             price: true,
-            category: true
+            isActive: true
           }
         }
       },
