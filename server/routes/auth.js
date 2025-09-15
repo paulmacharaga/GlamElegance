@@ -69,26 +69,39 @@ router.post('/login', [
   body('password').notEmpty().withMessage('Password is required')
 ], async (req, res) => {
   try {
+    console.log('Login attempt for:', req.body.username);
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { username, password } = req.body;
+    console.log('Looking for user:', username);
 
     const user = await User.findOne({
       $or: [{ username }, { email: username }],
       isActive: true
     });
 
+    console.log('User found:', !!user);
     if (!user) {
+      console.log('No user found for:', username);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
 
+    console.log('Testing password...');
     const isMatch = await user.comparePassword(password);
+    console.log('Password match:', isMatch);
+
     if (!isMatch) {
+      console.log('Password mismatch for user:', username);
       return res.status(400).json({ message: 'Invalid credentials' });
     }
+
+    console.log('Generating JWT token...');
+    console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
 
     const token = jwt.sign(
       { userId: user._id, role: user.role },
@@ -96,6 +109,7 @@ router.post('/login', [
       { expiresIn: '24h' }
     );
 
+    console.log('Login successful for:', username);
     res.json({
       token,
       user: {
@@ -107,8 +121,18 @@ router.post('/login', [
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Login error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    res.status(500).json({
+      message: 'Server error',
+      ...(process.env.NODE_ENV === 'development' && {
+        error: error.message,
+        stack: error.stack
+      })
+    });
   }
 });
 
