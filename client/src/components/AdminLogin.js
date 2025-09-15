@@ -13,7 +13,6 @@ import {
   IconButton
 } from '@mui/material';
 import { ArrowBack, Login, AdminPanelSettings } from '@mui/icons-material';
-import api from '../utils/api';
 import toast from 'react-hot-toast';
 import glamLogo from '../assets/glam-new-logo.png';
 // Google authentication temporarily disabled
