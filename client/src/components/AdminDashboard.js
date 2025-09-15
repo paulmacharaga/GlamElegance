@@ -45,7 +45,7 @@ import ServiceManagement from './ServiceManagement';
 import StaffManagement from './StaffManagement';
 import AdminBookingCalendar from './AdminBookingCalendar';
 import LoyaltyManagement from './LoyaltyManagement';
-import axios from 'axios';
+import api from '../utils/api';
 import toast from 'react-hot-toast';
 import glamLogo from '../assets/glam-new-logo.png';
 
@@ -62,7 +62,6 @@ const AdminDashboard = () => {
   const handleLogout = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    delete axios.defaults.headers.common['Authorization'];
     navigate('/admin');
   }, [navigate]);
 
@@ -71,9 +70,9 @@ const AdminDashboard = () => {
     setLoading(true);
     try {
       const [bookingsRes, feedbackRes, analyticsRes] = await Promise.all([
-        axios.get('/api/bookings'),
-        axios.get('/api/feedback'),
-        axios.get('/api/analytics/dashboard')
+        api.get('/api/bookings'),
+        api.get('/api/feedback'),
+        api.get('/api/analytics/dashboard')
       ]);
 
       setBookings(bookingsRes.data.bookings);
@@ -102,8 +101,7 @@ const AdminDashboard = () => {
     }
 
     setUser(JSON.parse(userData));
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    
+
     loadDashboardData();
   }, [navigate, loadDashboardData]);
 

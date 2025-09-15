@@ -13,7 +13,7 @@ import {
   IconButton
 } from '@mui/material';
 import { ArrowBack, Login, AdminPanelSettings } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../utils/api';
 import toast from 'react-hot-toast';
 import glamLogo from '../assets/glam-new-logo.png';
 // Google authentication temporarily disabled
@@ -44,14 +44,13 @@ const AdminLogin = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post('/api/auth/login', formData);
+      const response = await api.post('/api/auth/login', formData);
       
       // Store token in localStorage
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       
-      // Set default authorization header
-      axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      // Token is automatically handled by the API interceptor
       
       toast.success('Login successful!');
       navigate('/admin/dashboard');
