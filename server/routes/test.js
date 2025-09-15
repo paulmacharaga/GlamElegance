@@ -1,5 +1,6 @@
 const express = require('express');
-const User = require('../models/User');
+const bcrypt = require('bcryptjs');
+const prisma = require('../lib/prisma');
 const router = express.Router();
 
 // Simple ping test
@@ -48,12 +49,18 @@ router.get('/db-connection', async (req, res) => {
   try {
     console.log('Testing database connection...');
     
-    // Test basic connection
-    const userCount = await User.countDocuments();
+    // Test Prisma database connection
+    await prisma.$queryRaw`SELECT 1`;
+    console.log('Prisma database connection successful');
+
+    // Test by counting users
+    const userCount = await prisma.user.count();
     console.log(`Total users in database: ${userCount}`);
-    
+
     // Test finding the admin user
-    const adminUser = await User.findOne({ email: 'paul@ioi.co.zw' });
+    const adminUser = await prisma.user.findFirst({
+      where: { email: 'paul@ioi.co.zw' }
+    });
     console.log('Admin user found:', !!adminUser);
     
     if (adminUser) {
@@ -142,7 +149,10 @@ router.post('/create-admin', async (req, res) => {
     console.log('Creating admin user...');
 
     // Check if admin already exists
-    const existingAdmin = await User.findOne({ email: 'paul@ioi.co.zw' });
+    const existingAdmin = await prisma.user.findFirst({
+      where: { email: 'paul@ioi.co.zw' }
+    });
+
     if (existingAdmin) {
       return res.json({
         success: false,
@@ -157,18 +167,22 @@ router.post('/create-admin', async (req, res) => {
       });
     }
 
-    // Create admin user
-    const adminUser = new User({
-      username: 'paul',
-      email: 'paul@ioi.co.zw',
-      password: 'Letmein99x!',
-      name: 'Paul Macharaga',
-      role: 'admin',
-      isActive: true
+    // Hash password
+    const hashedPassword = await bcrypt.hash('Letmein99x!', 12);
+
+    // Create admin user with Prisma
+    const adminUser = await prisma.user.create({
+      data: {
+        username: 'paul',
+        email: 'paul@ioi.co.zw',
+        password: hashedPassword,
+        name: 'Paul Macharaga',
+        role: 'admin',
+        isActive: true
+      }
     });
 
-    await adminUser.save();
-    console.log('Admin user created successfully');
+    console.log('Admin user created successfully with Prisma');
 
     res.json({
       success: true,

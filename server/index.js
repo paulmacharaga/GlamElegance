@@ -3,7 +3,7 @@ require('./load-env');
 
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose');
+const prisma = require('./lib/prisma');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const passport = require('./config/passport');
@@ -90,22 +90,16 @@ app.use(passport.session());
 // Database connection
 const connectDB = async () => {
   try {
-    if (process.env.DATABASE_URL) {
-      // For Neon PostgreSQL or other PostgreSQL databases
-      console.log('PostgreSQL connection configured but using MongoDB for now');
-      // You can implement PostgreSQL connection here if needed
-    }
+    // Test Prisma connection
+    await prisma.$connect();
+    console.log('✅ Prisma PostgreSQL connected successfully');
 
-    // MongoDB Connection (primary database)
-    await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000, // Timeout for Vercel
-      socketTimeoutMS: 45000,
-    });
-    console.log('MongoDB connected');
+    // Test with a simple query
+    await prisma.$queryRaw`SELECT 1`;
+    console.log('✅ Database query test successful');
+
   } catch (err) {
-    console.error('Database connection error:', err);
+    console.error('❌ Database connection error:', err);
     // Don't exit process in serverless environment
     if (process.env.NODE_ENV !== 'production') {
       process.exit(1);

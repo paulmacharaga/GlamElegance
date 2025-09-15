@@ -1,7 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
-const User = require('../models/User');
+const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
 const passport = require('../config/passport');
 
@@ -80,9 +80,14 @@ router.post('/login', [
     const { username, password } = req.body;
     console.log('Looking for user:', username);
 
-    const user = await User.findOne({
-      $or: [{ username }, { email: username }],
-      isActive: true
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: username },
+          { email: username }
+        ],
+        isActive: true
+      }
     });
 
     console.log('User found:', !!user);
@@ -92,7 +97,7 @@ router.post('/login', [
     }
 
     console.log('Testing password...');
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await bcrypt.compare(password, user.password);
     console.log('Password match:', isMatch);
 
     if (!isMatch) {
