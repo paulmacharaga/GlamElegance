@@ -233,4 +233,78 @@ router.post('/migrate', async (req, res) => {
   }
 });
 
+// Debug login endpoint with full error details
+router.post('/debug-login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    console.log('🔍 Debug login attempt for:', username);
+
+    // Find user
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: username },
+          { email: username }
+        ],
+        isActive: true
+      }
+    });
+
+    console.log('User found:', !!user);
+    if (!user) {
+      return res.json({
+        success: false,
+        message: 'User not found',
+        step: 'user_lookup'
+      });
+    }
+
+    // Test password
+    const isMatch = await bcrypt.compare(password, user.password);
+    console.log('Password match:', isMatch);
+
+    if (!isMatch) {
+      return res.json({
+        success: false,
+        message: 'Invalid password',
+        step: 'password_check'
+      });
+    }
+
+    // Test JWT generation
+    console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
+    const jwt = require('jsonwebtoken');
+
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    console.log('Token generated successfully');
+
+    res.json({
+      success: true,
+      message: 'Debug login successful',
+      token: token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    console.error('Debug login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Debug login failed',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 module.exports = router;
