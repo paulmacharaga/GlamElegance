@@ -14,6 +14,19 @@ router.get('/ping', (req, res) => {
   });
 });
 
+// Test POST endpoint for browser testing
+router.post('/browser-test', (req, res) => {
+  console.log('Browser test request received from:', req.headers.origin || 'unknown origin');
+  console.log('Request body:', req.body);
+  res.json({
+    success: true,
+    message: 'Browser POST test successful',
+    timestamp: new Date().toISOString(),
+    origin: req.headers.origin,
+    receivedData: req.body
+  });
+});
+
 // Test database connection and user lookup
 router.get('/db-connection', async (req, res) => {
   try {
