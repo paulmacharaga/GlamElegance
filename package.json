@@ -15,6 +15,9 @@
   "keywords": ["glam-elegance", "beauty-salon", "qr-code", "booking", "reviews"],
   "author": "Glam Elegance",
   "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "devDependencies": {
     "concurrently": "^8.2.2"
   }
