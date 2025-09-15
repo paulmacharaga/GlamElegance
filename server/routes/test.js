@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
+const { main: runMigration } = require('../scripts/migrate');
 const router = express.Router();
 
 // Simple ping test
@@ -201,6 +202,28 @@ router.post('/create-admin', async (req, res) => {
       success: false,
       error: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Run database migration
+router.post('/migrate', async (req, res) => {
+  try {
+    console.log('🚀 Starting database migration via API...');
+
+    const result = await runMigration();
+
+    res.json({
+      success: true,
+      message: 'Database migration completed successfully',
+      result: result
+    });
+  } catch (error) {
+    console.error('❌ Migration API error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Database migration failed',
+      error: error.message
     });
   }
 });
