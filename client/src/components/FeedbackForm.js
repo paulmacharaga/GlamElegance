@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -17,16 +17,23 @@ import {
   FormControlLabel,
   Checkbox,
   CircularProgress,
-  IconButton
+  IconButton,
+  Skeleton
 } from '@mui/material';
 import { ArrowBack, Feedback as FeedbackIcon } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../utils/api';
 import toast from 'react-hot-toast';
 
 const FeedbackForm = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  
+  const [loadingServices, setLoadingServices] = useState(true);
+  const [loadingStaff, setLoadingStaff] = useState(true);
+  const [services, setServices] = useState([]);
+  const [staff, setStaff] = useState([]);
+  // eslint-disable-next-line no-unused-vars
+  const [error, setError] = useState(null);
+
   const [formData, setFormData] = useState({
     rating: 0,
     comment: '',
@@ -37,21 +44,59 @@ const FeedbackForm = () => {
     isAnonymous: false
   });
 
-  const services = [
-    { value: 'haircut', label: 'Haircut' },
-    { value: 'braids', label: 'Braids' },
-    { value: 'coloring', label: 'Hair Coloring' },
-    { value: 'styling', label: 'Hair Styling' },
-    { value: 'treatment', label: 'Hair Treatment' },
-    { value: 'consultation', label: 'Consultation' }
-  ];
+  // Fetch services from API
+  const fetchServices = async () => {
+    setLoadingServices(true);
+    setError(null);
+    try {
+      const response = await api.get('/api/services');
+      // Only include active services
+      const activeServices = response.data.filter(service => service.isActive);
+      setServices(activeServices);
+    } catch (error) {
+      console.error('Error fetching services:', error);
+      setError('Failed to load services');
+      // Fallback to default services
+      setServices([
+        { _id: 'haircut', name: 'Haircut', isActive: true },
+        { _id: 'braids', name: 'Braids', isActive: true },
+        { _id: 'coloring', name: 'Hair Coloring', isActive: true },
+        { _id: 'styling', name: 'Hair Styling', isActive: true },
+        { _id: 'treatment', name: 'Hair Treatment', isActive: true }
+      ]);
+    } finally {
+      setLoadingServices(false);
+    }
+  };
 
-  const stylists = [
-    'Sarah Johnson',
-    'Maria Rodriguez',
-    'Ashley Chen',
-    'Other'
-  ];
+  // Fetch staff from API
+  const fetchStaff = async () => {
+    setLoadingStaff(true);
+    setError(null);
+    try {
+      const response = await api.get('/api/staff');
+      // Only include active staff members
+      const activeStaff = response.data.filter(staffMember => staffMember.isActive);
+      setStaff(activeStaff);
+    } catch (error) {
+      console.error('Error fetching staff:', error);
+      setError('Failed to load staff');
+      // Fallback to default staff
+      setStaff([
+        { _id: 'sarah', name: 'Sarah Johnson', isActive: true },
+        { _id: 'maria', name: 'Maria Rodriguez', isActive: true },
+        { _id: 'ashley', name: 'Ashley Chen', isActive: true },
+        { _id: 'other', name: 'Other', isActive: true }
+      ]);
+    } finally {
+      setLoadingStaff(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchServices();
+    fetchStaff();
+  }, []);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -70,7 +115,7 @@ const FeedbackForm = () => {
 
     setLoading(true);
     try {
-      await axios.post('/api/feedback', formData);
+      await api.post('/api/feedback', formData);
       toast.success('Thank you for your feedback!');
       navigate('/thank-you?type=feedback');
     } catch (error) {
@@ -221,34 +266,42 @@ const FeedbackForm = () => {
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth>
                     <InputLabel>Service Received</InputLabel>
-                    <Select
-                      value={formData.service}
-                      label="Service Received"
-                      onChange={(e) => handleInputChange('service', e.target.value)}
-                    >
-                      {services.map((service) => (
-                        <MenuItem key={service.value} value={service.value}>
-                          {service.label}
-                        </MenuItem>
-                      ))}
-                    </Select>
+                    {loadingServices ? (
+                      <Skeleton variant="rectangular" height={56} />
+                    ) : (
+                      <Select
+                        value={formData.service}
+                        label="Service Received"
+                        onChange={(e) => handleInputChange('service', e.target.value)}
+                      >
+                        {services.map((service) => (
+                          <MenuItem key={service._id} value={service._id}>
+                            {service.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    )}
                   </FormControl>
                 </Grid>
 
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth>
                     <InputLabel>Stylist</InputLabel>
-                    <Select
-                      value={formData.stylist}
-                      label="Stylist"
-                      onChange={(e) => handleInputChange('stylist', e.target.value)}
-                    >
-                      {stylists.map((stylist) => (
-                        <MenuItem key={stylist} value={stylist}>
-                          {stylist}
-                        </MenuItem>
-                      ))}
-                    </Select>
+                    {loadingStaff ? (
+                      <Skeleton variant="rectangular" height={56} />
+                    ) : (
+                      <Select
+                        value={formData.stylist}
+                        label="Stylist"
+                        onChange={(e) => handleInputChange('stylist', e.target.value)}
+                      >
+                        {staff.map((staffMember) => (
+                          <MenuItem key={staffMember._id} value={staffMember._id}>
+                            {staffMember.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    )}
                   </FormControl>
                 </Grid>
 
