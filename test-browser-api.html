@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test</title>
+</head>
+<body>
+    <h1>Testing API from Browser Context</h1>
+    <div id="results"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script>
+        const log = (message) => {
+            console.log(message);
+            document.getElementById('results').innerHTML += '<p>' + JSON.stringify(message) + '</p>';
+        };
+
+        // Test 1: Basic fetch
+        log('=== Test 1: Basic fetch ===');
+        fetch('/api/test/ping')
+            .then(response => response.json())
+            .then(data => log('✅ Fetch ping success: ' + JSON.stringify(data)))
+            .catch(error => log('❌ Fetch ping failed: ' + error.message));
+
+        // Test 2: Fetch login
+        log('=== Test 2: Fetch login ===');
+        fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: 'paul', password: 'Letmein99x!' })
+        })
+        .then(response => response.json())
+        .then(data => log('✅ Fetch login success: ' + JSON.stringify(data)))
+        .catch(error => log('❌ Fetch login failed: ' + error.message));
+
+        // Test 3: Axios with same origin
+        log('=== Test 3: Axios same origin ===');
+        const api = axios.create({
+            baseURL: window.location.origin,
+            timeout: 30000,
+            headers: { 'Content-Type': 'application/json' },
+            withCredentials: false
+        });
+
+        api.post('/api/auth/login', { username: 'paul', password: 'Letmein99x!' })
+            .then(response => log('✅ Axios login success: ' + JSON.stringify(response.data)))
+            .catch(error => log('❌ Axios login failed: ' + error.message + ' - ' + (error.response?.data?.message || 'No response data')));
+
+        // Test 4: Environment check
+        log('=== Test 4: Environment ===');
+        log('Window location: ' + JSON.stringify({
+            origin: window.location.origin,
+            hostname: window.location.hostname,
+            href: window.location.href
+        }));
+    </script>
+</body>
+</html>
