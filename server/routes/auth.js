@@ -64,22 +64,17 @@ router.post('/register', [
 });
 
 // Login
-router.post('/login', [
-  body('username').notEmpty().withMessage('Username is required'),
-  body('password').notEmpty().withMessage('Password is required')
-], async (req, res) => {
+router.post('/login', async (req, res) => {
   try {
-    console.log('Login attempt for:', req.body.username);
+    const { username, password } = req.body;
+    console.log('Login attempt for:', username);
 
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      console.log('Validation errors:', errors.array());
-      return res.status(400).json({ errors: errors.array() });
+    // Basic validation
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Username and password are required' });
     }
 
-    const { username, password } = req.body;
     console.log('Looking for user:', username);
-
     const user = await prisma.user.findFirst({
       where: {
         OR: [
@@ -133,10 +128,8 @@ router.post('/login', [
     });
     res.status(500).json({
       message: 'Server error',
-      ...(process.env.NODE_ENV === 'development' && {
-        error: error.message,
-        stack: error.stack
-      })
+      error: error.message,
+      stack: error.stack
     });
   }
 });
