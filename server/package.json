@@ -1,7 +1,7 @@
 {
-  "name": "hair-studio-server",
+  "name": "glam-elegance-server",
   "version": "1.0.0",
-  "description": "Hair Studio Backend API",
+  "description": "Glam Elegance Booking Backend API",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
@@ -26,6 +26,7 @@
     "qrcode": "^1.5.3"
   },
   "devDependencies": {
+    "@faker-js/faker": "^9.9.0",
     "nodemon": "^3.0.1"
   }
 }

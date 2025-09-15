@@ -13,26 +13,27 @@ import AdminDashboard from './components/AdminDashboard';
 import QRGenerator from './components/QRGenerator';
 import ThankYou from './components/ThankYou';
 import GoogleAuthSuccess from './components/GoogleAuthSuccess';
+import ErrorBoundary from './components/ErrorBoundary';
 
-// Create salon theme
+// Create Glam Elegance theme
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#2D1B69', // Deep purple
-      light: '#5E4BA4',
-      dark: '#1A0F3D'
+      main: '#6B2C7A', // Elegant purple (matching logo)
+      light: '#8B4A9C',
+      dark: '#4A1A5A'
     },
     secondary: {
-      main: '#E91E63', // Pink accent
-      light: '#F48FB1',
-      dark: '#AD1457'
+      main: '#D4AF37', // Gold accent for elegance
+      light: '#E8C547',
+      dark: '#B8941F'
     },
     background: {
-      default: '#F8F9FA',
+      default: '#F8F6FA', // Subtle purple tint
       paper: '#FFFFFF'
     },
     text: {
-      primary: '#2D1B69',
+      primary: '#2D1B3D',
       secondary: '#666666'
     }
   },
@@ -81,35 +82,37 @@ const theme = createTheme({
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Router>
-        <div className="App">
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/scan" element={<LandingPage />} />
-            <Route path="/book" element={<BookingForm />} />
-            <Route path="/feedback" element={<FeedbackForm />} />
-            <Route path="/admin" element={<AdminLogin />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/qr" element={<QRGenerator />} />
-            <Route path="/admin/google-auth-success" element={<GoogleAuthSuccess />} />
-            <Route path="/thank-you" element={<ThankYou />} />
-          </Routes>
-          <Toaster 
-            position="top-center"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#2D1B69',
-                color: '#fff',
-                borderRadius: '25px'
-              }
-            }}
-          />
-        </div>
-      </Router>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Router>
+          <div className="App">
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/scan" element={<LandingPage />} />
+              <Route path="/book" element={<BookingForm />} />
+              <Route path="/feedback" element={<FeedbackForm />} />
+              <Route path="/admin" element={<AdminLogin />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/qr" element={<QRGenerator />} />
+              <Route path="/admin/google-auth-success" element={<GoogleAuthSuccess />} />
+              <Route path="/thank-you" element={<ThankYou />} />
+            </Routes>
+            <Toaster
+              position="top-center"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: '#2D1B69',
+                  color: '#fff',
+                  borderRadius: '25px'
+                }
+              }}
+            />
+          </div>
+        </Router>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

@@ -47,6 +47,7 @@ import AdminBookingCalendar from './AdminBookingCalendar';
 import LoyaltyManagement from './LoyaltyManagement';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import glamLogo from '../assets/glam-new-logo.png';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -221,7 +222,7 @@ const AdminDashboard = () => {
                   {bookings.slice(0, 5).map((booking) => (
                     <TableRow key={booking._id}>
                       <TableCell>{booking.customerName}</TableCell>
-                      <TableCell>{booking.service}</TableCell>
+                      <TableCell>{booking.service?.name || booking.service}</TableCell>
                       <TableCell>{formatDate(booking.appointmentDate)}</TableCell>
                       <TableCell>{booking.appointmentTime}</TableCell>
                       <TableCell>
@@ -281,7 +282,16 @@ const AdminDashboard = () => {
                   <TableCell>{booking.customerName}</TableCell>
                   <TableCell>{booking.customerEmail}</TableCell>
                   <TableCell>{booking.customerPhone}</TableCell>
-                  <TableCell>{booking.service}</TableCell>
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2">{booking.service?.name || booking.service}</Typography>
+                      {booking.service?.price && (
+                        <Typography variant="caption" color="text.secondary">
+                          ${booking.service.price} • {booking.service.duration} min
+                        </Typography>
+                      )}
+                    </Box>
+                  </TableCell>
                   <TableCell>{booking.stylist || 'Any'}</TableCell>
                   <TableCell>{formatDate(booking.appointmentDate)}</TableCell>
                   <TableCell>{booking.appointmentTime}</TableCell>
@@ -367,9 +377,20 @@ const AdminDashboard = () => {
       {/* App Bar */}
       <AppBar position="static">
         <Toolbar>
-          <Dashboard sx={{ mr: 2 }} />
+          <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+            <img
+              src={glamLogo}
+              alt="Glam Elegance Logo"
+              style={{
+                height: '40px',
+                width: 'auto',
+                marginRight: '12px'
+              }}
+            />
+            <Dashboard sx={{ mr: 1 }} />
+          </Box>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Hair Studio Admin
+            Glam Elegance Admin
           </Typography>
           <Button color="inherit" onClick={() => navigate('/admin/qr')}>
             QR Generator

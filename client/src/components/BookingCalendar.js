@@ -32,18 +32,28 @@ const BookingCalendar = ({ onSelectTimeSlot, selectedService, selectedStaff }) =
 
   // Generate dates for the current week
   const generateWeekDates = (date) => {
-    const startOfWeek = date.startOf('week');
-    const dates = [];
-    
-    for (let i = 0; i < 7; i++) {
-      const currentDate = startOfWeek.add(i, 'day');
-      // Skip Sunday (day 0) if the salon is closed on Sundays
-      if (currentDate.day() !== 0) {
-        dates.push(currentDate);
+    try {
+      if (!date || !dayjs.isDayjs(date)) {
+        console.error('Invalid date provided to generateWeekDates:', date);
+        return [];
       }
+
+      const startOfWeek = date.startOf('week');
+      const dates = [];
+
+      for (let i = 0; i < 7; i++) {
+        const currentDate = startOfWeek.add(i, 'day');
+        // Skip Sunday (day 0) if the salon is closed on Sundays
+        if (currentDate.day() !== 0) {
+          dates.push(currentDate);
+        }
+      }
+
+      return dates;
+    } catch (error) {
+      console.error('Error generating week dates:', error);
+      return [];
     }
-    
-    return dates;
   };
 
   const weekDates = generateWeekDates(currentDate);
@@ -55,25 +65,32 @@ const BookingCalendar = ({ onSelectTimeSlot, selectedService, selectedStaff }) =
 
   const fetchAvailableSlots = async () => {
     if (!weekDates.length) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const startDate = weekDates[0].format('YYYY-MM-DD');
       const endDate = weekDates[weekDates.length - 1].format('YYYY-MM-DD');
-      
+
       // Build query parameters
       let queryParams = `startDate=${startDate}&endDate=${endDate}`;
       if (selectedService) queryParams += `&serviceId=${selectedService}`;
       if (selectedStaff) queryParams += `&staffId=${selectedStaff}`;
-      
+
       const response = await axios.get(`/api/bookings/availability?${queryParams}`);
-      setAvailableSlots(response.data.availableSlots || {});
+
+      if (response.data && typeof response.data.availableSlots === 'object') {
+        setAvailableSlots(response.data.availableSlots);
+      } else {
+        console.warn('Invalid availability response format:', response.data);
+        setAvailableSlots({});
+      }
     } catch (error) {
       console.error('Failed to fetch available slots:', error);
       setError('Failed to load available time slots. Please try again.');
       toast.error('Failed to load available time slots');
+      setAvailableSlots({});
     } finally {
       setLoading(false);
     }
@@ -107,8 +124,17 @@ const BookingCalendar = ({ onSelectTimeSlot, selectedService, selectedStaff }) =
   };
 
   const getAvailableTimesForDate = (date) => {
-    const formattedDate = date.format('YYYY-MM-DD');
-    return availableSlots[formattedDate] || [];
+    try {
+      if (!date || !dayjs.isDayjs(date)) {
+        console.warn('Invalid date provided to getAvailableTimesForDate:', date);
+        return [];
+      }
+      const formattedDate = date.format('YYYY-MM-DD');
+      return availableSlots[formattedDate] || [];
+    } catch (error) {
+      console.error('Error getting available times for date:', error, date);
+      return [];
+    }
   };
 
   const formatDayLabel = (date) => {

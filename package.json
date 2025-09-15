@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "hair-studio-app",
+  "name": "glam-elegance-booking",
   "version": "1.0.0",
-  "description": "Hair Studio QR Code Management System",
+  "description": "Glam Elegance Booking - Beauty Salon QR Code Management System",
   "main": "server/index.js",
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
@@ -11,8 +11,8 @@
     "build": "cd client && npm run build",
     "install-all": "npm install && cd server && npm install && cd ../client && npm install"
   },
-  "keywords": ["hair-studio", "qr-code", "booking", "reviews"],
-  "author": "Hair Studio",
+  "keywords": ["glam-elegance", "beauty-salon", "qr-code", "booking", "reviews"],
+  "author": "Glam Elegance",
   "license": "MIT",
   "devDependencies": {
     "concurrently": "^8.2.2"

@@ -18,6 +18,7 @@ import {
 import { ArrowBack, Download, Print, Refresh } from '@mui/icons-material';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import glamLogo from '../assets/glam-new-logo.png';
 
 const QRGenerator = () => {
   const navigate = useNavigate();
@@ -110,7 +111,7 @@ const QRGenerator = () => {
         </head>
         <body>
           <div class="qr-container">
-            <div class="logo">Hair Studio</div>
+            <div class="logo">Glam Elegance</div>
             <div class="qr-code">
               <img src="${qrCode}" alt="QR Code" style="width: 250px; height: 250px;" />
             </div>
@@ -136,6 +137,17 @@ const QRGenerator = () => {
           <IconButton color="inherit" onClick={() => navigate('/admin/dashboard')}>
             <ArrowBack />
           </IconButton>
+          <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+            <img
+              src={glamLogo}
+              alt="Glam Elegance Logo"
+              style={{
+                height: '32px',
+                width: 'auto',
+                marginRight: '8px'
+              }}
+            />
+          </Box>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             QR Code Generator
           </Typography>

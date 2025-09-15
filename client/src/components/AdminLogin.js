@@ -15,6 +15,7 @@ import {
 import { ArrowBack, Login, AdminPanelSettings } from '@mui/icons-material';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import glamLogo from '../assets/glam-new-logo.png';
 // Google authentication temporarily disabled
 // import TraditionalGoogleButton from './TraditionalGoogleButton';
 
@@ -87,7 +88,18 @@ const AdminLogin = () => {
         <Card>
           <CardContent sx={{ p: 4 }}>
             <Box textAlign="center" mb={4}>
-              <AdminPanelSettings sx={{ fontSize: 60, color: 'primary.main', mb: 2 }} />
+              <Box sx={{ mb: 2 }}>
+                <img
+                  src={glamLogo}
+                  alt="Glam Elegance Logo"
+                  style={{
+                    height: '80px',
+                    width: 'auto',
+                    marginBottom: '16px'
+                  }}
+                />
+              </Box>
+              <AdminPanelSettings sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
               <Typography variant="h5" gutterBottom>
                 Staff Portal
               </Typography>

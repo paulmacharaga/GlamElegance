@@ -124,11 +124,29 @@ const AdminBookingCalendar = () => {
 
   // Group bookings by day and time
   const getBookingsForDayAndTime = (day, time) => {
-    const date = startOfWeek.add(day, 'day').format('YYYY-MM-DD');
-    return bookings.filter(booking => {
-      const bookingDate = dayjs(booking.appointmentDate).format('YYYY-MM-DD');
-      return bookingDate === date && booking.appointmentTime === time;
-    });
+    try {
+      if (!Array.isArray(bookings)) {
+        console.warn('Bookings is not an array:', bookings);
+        return [];
+      }
+
+      const date = startOfWeek.add(day, 'day').format('YYYY-MM-DD');
+      return bookings.filter(booking => {
+        try {
+          if (!booking || !booking.appointmentDate || !booking.appointmentTime) {
+            return false;
+          }
+          const bookingDate = dayjs(booking.appointmentDate).format('YYYY-MM-DD');
+          return bookingDate === date && booking.appointmentTime === time;
+        } catch (error) {
+          console.error('Error filtering booking:', error, booking);
+          return false;
+        }
+      });
+    } catch (error) {
+      console.error('Error in getBookingsForDayAndTime:', error);
+      return [];
+    }
   };
 
   // Check if a day is Sunday (closed)
@@ -137,11 +155,22 @@ const AdminBookingCalendar = () => {
   };
 
   // Generate the days of the week
-  const weekDays = Array.from({ length: 7 }, (_, i) => ({
-    dayIndex: i,
-    date: startOfWeek.add(i, 'day'),
-    isClosed: isSunday(i)
-  }));
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    try {
+      return {
+        dayIndex: i,
+        date: startOfWeek.add(i, 'day'),
+        isClosed: isSunday(i)
+      };
+    } catch (error) {
+      console.error('Error generating week day:', error, i);
+      return {
+        dayIndex: i,
+        date: dayjs(),
+        isClosed: true
+      };
+    }
+  });
 
   return (
     <Box sx={{ width: '100%' }}>
@@ -200,7 +229,7 @@ const AdminBookingCalendar = () => {
               </Grid>
               
               {weekDays.map((day) => (
-                <Grid item xs={1.4} key={day.dayIndex}>
+                <Grid item xs key={day.dayIndex}>
                   <Paper 
                     elevation={0} 
                     sx={{ 
@@ -237,7 +266,7 @@ const AdminBookingCalendar = () => {
                   const dayBookings = getBookingsForDayAndTime(day.dayIndex, time);
                   
                   return (
-                    <Grid item xs={1.4} key={`${day.dayIndex}-${time}`}>
+                    <Grid item xs key={`${day.dayIndex}-${time}`}>
                       <Box 
                         sx={{ 
                           height: '100%', 
@@ -264,7 +293,7 @@ const AdminBookingCalendar = () => {
                               </Typography>
                               <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                 <Spa sx={{ fontSize: 12 }} />
-                                {booking.service}
+                                {booking.service?.name || booking.service || 'Service'}
                               </Typography>
                               {booking.stylist && (
                                 <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>

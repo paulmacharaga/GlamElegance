@@ -56,6 +56,15 @@ router.post('/', [
     });
   } catch (error) {
     console.error('Feedback submission error:', error);
+
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        message: 'Validation failed',
+        errors: validationErrors
+      });
+    }
+
     res.status(500).json({ message: 'Server error' });
   }
 });

@@ -1,11 +1,13 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const Booking = require('../models/Booking');
+const Service = require('../models/Service');
 const Analytics = require('../models/Analytics');
 const LoyaltyProgram = require('../models/LoyaltyProgram');
 const CustomerLoyalty = require('../models/CustomerLoyalty');
 const auth = require('../middleware/auth');
 const { sendBookingConfirmation } = require('../utils/email');
+const mongoose = require('mongoose');
 
 const router = express.Router();
 
@@ -14,7 +16,7 @@ router.post('/', [
   body('customerName').notEmpty().withMessage('Customer name is required'),
   body('customerEmail').isEmail().withMessage('Valid email is required'),
   body('customerPhone').notEmpty().withMessage('Phone number is required'),
-  body('service').isIn(['haircut', 'braids', 'coloring', 'styling', 'treatment', 'consultation']).withMessage('Invalid service'),
+  body('service').notEmpty().withMessage('Service is required'),
   body('appointmentDate').isISO8601().withMessage('Valid date is required'),
   body('appointmentTime').notEmpty().withMessage('Appointment time is required')
 ], async (req, res) => {
@@ -34,6 +36,17 @@ router.post('/', [
       appointmentTime,
       notes
     } = req.body;
+
+    // Validate service ID
+    if (!mongoose.Types.ObjectId.isValid(service)) {
+      return res.status(400).json({ message: 'Invalid service ID' });
+    }
+
+    // Check if service exists and is active
+    const serviceDoc = await Service.findById(service);
+    if (!serviceDoc || !serviceDoc.isActive) {
+      return res.status(400).json({ message: 'Service not found or inactive' });
+    }
 
     // Check for existing booking at same time
     const existingBooking = await Booking.findOne({
@@ -155,8 +168,10 @@ router.get('/', auth, async (req, res) => {
     // Determine if we should use pagination
     const usePagination = !startDate || !endDate;
     
-    let bookingsQuery = Booking.find(query).sort({ appointmentDate: 1, appointmentTime: 1 });
-    
+    let bookingsQuery = Booking.find(query)
+      .populate('service', 'name description duration price category')
+      .sort({ createdAt: -1, appointmentDate: 1, appointmentTime: 1 });
+
     // Apply pagination only when not in calendar view mode
     if (usePagination) {
       bookingsQuery = bookingsQuery.limit(limit * 1).skip((page - 1) * limit);

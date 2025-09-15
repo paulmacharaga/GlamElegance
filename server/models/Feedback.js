@@ -23,7 +23,7 @@ const feedbackSchema = new mongoose.Schema({
   },
   service: {
     type: String,
-    enum: ['haircut', 'braids', 'coloring', 'styling', 'treatment', 'consultation']
+    trim: true
   },
   stylist: {
     type: String,

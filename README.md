@@ -1,6 +1,6 @@
-# Hair Studio QR Code Management System
+# Glam Elegance Booking - QR Code Management System
 
-A comprehensive web application for hair salons to manage customer interactions through QR codes, featuring Google Reviews integration, private feedback collection, and appointment booking.
+A comprehensive web application for beauty salons to manage customer interactions through QR codes, featuring Google Reviews integration, private feedback collection, and appointment booking.
 
 ## Features
 

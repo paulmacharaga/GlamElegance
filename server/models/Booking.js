@@ -18,9 +18,9 @@ const bookingSchema = new mongoose.Schema({
     trim: true
   },
   service: {
-    type: String,
-    required: true,
-    enum: ['haircut', 'braids', 'coloring', 'styling', 'treatment', 'consultation']
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Service',
+    required: true
   },
   stylist: {
     type: String,

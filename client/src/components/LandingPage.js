@@ -100,6 +100,18 @@ const LandingPage = () => {
       <Container maxWidth="md">
         {/* Header */}
         <Box textAlign="center" mb={4}>
+          {/* Logo */}
+          <Box sx={{ mb: 2 }}>
+            <img
+              src="/glam-new-logo.png"
+              alt="Glam Elegance Logo"
+              style={{
+                height: isMobile ? '80px' : '120px',
+                width: 'auto',
+                maxWidth: '100%'
+              }}
+            />
+          </Box>
           <Typography
             variant="h1"
             sx={{
@@ -111,7 +123,7 @@ const LandingPage = () => {
               fontSize: isMobile ? '2rem' : '3rem'
             }}
           >
-            Hair Studio
+            Glam Elegance
           </Typography>
           <Typography
             variant="h3"
@@ -157,10 +169,6 @@ const LandingPage = () => {
                   height: '100%',
                   cursor: 'pointer',
                   transition: 'all 0.3s ease',
-                  '&:hover': {
-                    transform: 'translateY(-8px)',
-                    boxShadow: '0 8px 30px rgba(45, 27, 105, 0.2)'
-                  },
                   background: 'white',
                   border: `2px solid transparent`,
                   '&:hover': {
