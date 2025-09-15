@@ -2,10 +2,25 @@ import axios from 'axios';
 
 // Determine base URL for API calls
 const getBaseURL = () => {
+  // Debug logging
+  console.log('Environment check:', {
+    NODE_ENV: process.env.NODE_ENV,
+    REACT_APP_API_URL: process.env.REACT_APP_API_URL,
+    hostname: window.location.hostname,
+    origin: window.location.origin
+  });
+
   // Check for explicit environment variable first
   if (process.env.REACT_APP_API_URL) {
     console.log('Using REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
     return process.env.REACT_APP_API_URL;
+  }
+
+  // Force production URL if on vercel domain
+  if (window.location.hostname.includes('vercel.app')) {
+    const baseURL = window.location.origin;
+    console.log('Vercel domain detected - using same origin:', baseURL);
+    return baseURL;
   }
 
   // In production, use same domain
@@ -21,12 +36,16 @@ const getBaseURL = () => {
 };
 
 // Create axios instance with proper configuration
+const baseURL = getBaseURL();
+console.log('Final base URL for axios:', baseURL);
+
 const api = axios.create({
-  baseURL: getBaseURL(),
+  baseURL: baseURL,
   timeout: 30000, // 30 second timeout for serverless functions
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: false, // Explicitly set credentials handling
 });
 
 // Request interceptor to add auth token
