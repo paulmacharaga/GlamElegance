@@ -307,4 +307,64 @@ router.post('/debug-login', async (req, res) => {
   }
 });
 
+// Test auth route without validation middleware
+router.post('/simple-login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    console.log('Simple login attempt for:', username);
+
+    if (!username || !password) {
+      return res.status(400).json({ message: 'Username and password required' });
+    }
+
+    // Find user
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: username },
+          { email: username }
+        ],
+        isActive: true
+      }
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Check password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Generate token
+    const jwt = require('jsonwebtoken');
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      }
+    });
+
+  } catch (error) {
+    console.error('Simple login error:', error);
+    res.status(500).json({
+      message: 'Server error',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 module.exports = router;
