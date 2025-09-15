@@ -20,7 +20,7 @@ import {
   ContentCut,
   Palette
 } from '@mui/icons-material';
-import axios from 'axios';
+import api from '../utils/api';
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -31,7 +31,7 @@ const LandingPage = () => {
     // Track QR scan when landing page loads
     const trackQRScan = async () => {
       try {
-        await axios.post('/api/qr/scan');
+        await api.post('/api/qr/scan');
       } catch (error) {
         console.error('Failed to track QR scan:', error);
       }
@@ -43,7 +43,7 @@ const LandingPage = () => {
   const handleGoogleReview = async () => {
     try {
       // Track Google review click
-      await axios.post('/api/qr/google-review-click');
+      await api.post('/api/qr/google-review-click');
       
       // Use the Google Place ID from environment variables
       const placeId = process.env.REACT_APP_GOOGLE_PLACE_ID || 'ChIJN1t_tDeuEmsRUsoyG83frY4';

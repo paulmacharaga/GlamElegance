@@ -29,7 +29,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
-import axios from 'axios';
+import api from '../utils/api';
 import toast from 'react-hot-toast';
 import BookingCalendar from './BookingCalendar';
 import CustomerLoyalty from './CustomerLoyalty';
@@ -77,7 +77,7 @@ const BookingForm = () => {
     setLoadingServices(true);
     setError(null);
     try {
-      const response = await axios.get('/api/services');
+      const response = await api.get('/api/services');
       // Only include active services
       const activeServices = response.data.filter(service => service.isActive);
       setServices(activeServices);
@@ -95,7 +95,7 @@ const BookingForm = () => {
     setLoadingStaff(true);
     setError(null);
     try {
-      const response = await axios.get('/api/staff');
+      const response = await api.get('/api/staff');
       // Only include active staff members
       const activeStaff = response.data.filter(staffMember => staffMember.isActive);
       setStaff(activeStaff);
@@ -112,7 +112,7 @@ const BookingForm = () => {
     setLoadingSlots(true);
     try {
       const formattedDate = dayjs(date).format('YYYY-MM-DD');
-      const response = await axios.get(`/api/bookings/availability/${formattedDate}`);
+      const response = await api.get(`/api/bookings/availability/${formattedDate}`);
       setAvailableSlots(response.data.availableSlots);
     } catch (error) {
       console.error('Failed to fetch available slots:', error);
@@ -164,12 +164,12 @@ const BookingForm = () => {
       };
 
       // Create the booking
-      const bookingResponse = await axios.post('/api/bookings', bookingData);
+      const bookingResponse = await api.post('/api/bookings', bookingData);
       
       // If using loyalty reward, redeem points
       if (formData.useReward && loyaltyReward) {
         try {
-          await axios.post(`/api/loyalty/customer/${formData.customerEmail}/redeem`, {
+          await api.post(`/api/loyalty/customer/${formData.customerEmail}/redeem`, {
             bookingId: bookingResponse.data.booking.id
           });
           toast.success('Loyalty reward applied to your booking!');
