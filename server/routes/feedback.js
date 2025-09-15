@@ -74,8 +74,8 @@ router.get('/', auth, async (req, res) => {
     const { page = 1, limit = 10, rating, service } = req.query;
 
     const where = {};
-    if (rating) where.rating = parseInt(rating);
-    if (service) where.service = service;
+    if (rating) where.overallRating = parseInt(rating);
+    if (service) where.serviceUsed = service;
 
     const feedback = await prisma.feedback.findMany({
       where,

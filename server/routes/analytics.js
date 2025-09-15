@@ -36,7 +36,7 @@ router.get('/dashboard', auth, async (req, res) => {
         }
       },
       _avg: {
-        rating: true
+        overallRating: true
       }
     });
 
@@ -85,7 +85,7 @@ router.get('/dashboard', auth, async (req, res) => {
         reviewClicks,
         bookingsCount,
         feedbackCount,
-        averageRating: feedbackStats._avg.rating || 0
+        averageRating: feedbackStats._avg.overallRating || 0
       },
       bookingsByStatus,
       dailyAnalytics
