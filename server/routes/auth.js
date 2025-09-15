@@ -109,7 +109,7 @@ router.post('/login', [
     console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
 
     const token = jwt.sign(
-      { userId: user._id, role: user.role },
+      { userId: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -118,7 +118,7 @@ router.post('/login', [
     res.json({
       token,
       user: {
-        id: user._id,
+        id: user.id,
         username: user.username,
         email: user.email,
         name: user.name,
