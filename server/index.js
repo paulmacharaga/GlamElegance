@@ -66,12 +66,32 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Database connection
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('MongoDB connected'))
-.catch(err => console.log('MongoDB connection error:', err));
+const connectDB = async () => {
+  try {
+    if (process.env.DATABASE_URL) {
+      // For Neon PostgreSQL or other PostgreSQL databases
+      console.log('PostgreSQL connection configured but using MongoDB for now');
+      // You can implement PostgreSQL connection here if needed
+    }
+
+    // MongoDB Connection (primary database)
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000, // Timeout for Vercel
+      socketTimeoutMS: 45000,
+    });
+    console.log('MongoDB connected');
+  } catch (err) {
+    console.error('Database connection error:', err);
+    // Don't exit process in serverless environment
+    if (process.env.NODE_ENV !== 'production') {
+      process.exit(1);
+    }
+  }
+};
+
+connectDB();
 
 // Routes
 app.use('/api/auth', authRoutes);
