@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const prisma = require('../lib/prisma');
 
 const auth = async (req, res, next) => {
   try {
@@ -26,7 +26,20 @@ const auth = async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid token payload' });
     }
 
-    const user = await User.findById(decoded.userId).select('-password');
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
     }
