@@ -1,5 +1,7 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { body, validationResult } = require('express-validator');
 const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
 const passport = require('../config/passport');
