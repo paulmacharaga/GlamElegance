@@ -20,7 +20,7 @@ import dayjs from 'dayjs';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-const BookingCalendar = ({ onSelectTimeSlot, selectedService, selectedStaff }) => {
+const BookingCalendar = ({ onSelectTimeSlot, selectedService }) => {
   const [currentDate, setCurrentDate] = useState(dayjs());
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
@@ -69,7 +69,6 @@ const BookingCalendar = ({ onSelectTimeSlot, selectedService, selectedStaff }) =
       // Build query parameters
       let queryParams = `startDate=${startDate}&endDate=${endDate}`;
       if (selectedService) queryParams += `&serviceId=${selectedService}`;
-      if (selectedStaff) queryParams += `&staffId=${selectedStaff}`;
 
       const response = await axios.get(`/api/bookings/availability?${queryParams}`);
 
@@ -87,12 +86,12 @@ const BookingCalendar = ({ onSelectTimeSlot, selectedService, selectedStaff }) =
     } finally {
       setLoading(false);
     }
-  }, [weekDates, selectedService, selectedStaff]);
+  }, [weekDates, selectedService]);
 
   // Fetch available slots for the current week
   useEffect(() => {
     fetchAvailableSlots();
-  }, [currentDate, selectedService, selectedStaff, fetchAvailableSlots]);
+  }, [currentDate, selectedService, fetchAvailableSlots]);
 
   const handleDateClick = (date) => {
     setSelectedDate(date);

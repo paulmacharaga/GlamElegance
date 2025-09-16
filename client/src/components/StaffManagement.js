@@ -179,7 +179,7 @@ const StaffManagement = () => {
       bio: staffMember.bio || '',
       photo: staffMember.photo || '',
       specialties: staffMember.specialties || [],
-      services: staffMember.services.map(service => 
+      services: (staffMember.services || []).map(service => 
         typeof service === 'string' ? service : service._id
       ),
       workingHours: staffMember.workingHours || {

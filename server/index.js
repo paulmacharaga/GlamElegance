@@ -63,16 +63,16 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Rate limiting - more permissive for admin dashboard
+// Rate limiting - very permissive for development
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 500, // increased limit for admin operations
+  max: 2000, // much higher limit for development
   trustProxy: true, // Enable X-Forwarded-For header checking
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Skip rate limiting for health checks
-    return req.path === '/api/health';
+    // Skip rate limiting for health checks and development
+    return req.path === '/api/health' || process.env.NODE_ENV === 'development';
   }
 });
 app.use(limiter);

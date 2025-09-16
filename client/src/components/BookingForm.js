@@ -17,8 +17,6 @@ import {
   CircularProgress,
   IconButton,
   Skeleton,
-  Tabs,
-  Tab,
   Paper,
   Divider,
   Switch,
@@ -28,14 +26,13 @@ import {
   ImageListItemBar,
   Chip
 } from '@mui/material';
-import { ArrowBack, CalendarToday, AccessTime, Person, ViewDay, CalendarMonth, Stars, CardGiftcard, PhotoCamera, Delete, CloudUpload } from '@mui/icons-material';
+import { ArrowBack, CalendarToday, AccessTime, Person, Stars, CardGiftcard, PhotoCamera, Delete, CloudUpload } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
 import api from '../utils/api';
 import toast from 'react-hot-toast';
-import BookingCalendar from './BookingCalendar';
 import CustomerLoyalty from './CustomerLoyalty';
 
 const BookingForm = () => {
@@ -46,7 +43,6 @@ const BookingForm = () => {
   const [loadingServices, setLoadingServices] = useState(true);
   const [services, setServices] = useState([]);
   const [error, setError] = useState(null);
-  const [viewMode, setViewMode] = useState('form'); // 'form' or 'calendar'
   
   const [formData, setFormData] = useState({
     customerName: '',
@@ -202,13 +198,6 @@ const BookingForm = () => {
     });
   };
   
-  const handleTimeSlotSelect = (date, time) => {
-    setFormData(prev => ({
-      ...prev,
-      appointmentDate: dayjs(date),
-      appointmentTime: time
-    }));
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -298,10 +287,6 @@ const BookingForm = () => {
     toast.success(`$${rewardAmount} reward available!`);
   };
 
-  const isWeekend = (date) => {
-    const day = dayjs(date).day();
-    return day === 0; // Sunday closed
-  };
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -407,100 +392,63 @@ const BookingForm = () => {
 
                   {/* Date and Time Selection */}
                   <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-                      <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center' }}>
-                        <CalendarToday sx={{ mr: 1 }} />
-                        Date & Time
-                      </Typography>
-                      
-                      <Tabs 
-                        value={viewMode} 
-                        onChange={(e, newValue) => setViewMode(newValue)}
-                        indicatorColor="primary"
-                        textColor="primary"
-                      >
-                        <Tab 
-                          value="form" 
-                          label="Simple" 
-                          icon={<ViewDay />} 
-                          iconPosition="start"
-                        />
-                        <Tab 
-                          value="calendar" 
-                          label="Calendar" 
-                          icon={<CalendarMonth />} 
-                          iconPosition="start"
-                        />
-                      </Tabs>
-                    </Box>
+                    <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <CalendarToday sx={{ mr: 1 }} />
+                      Date & Time
+                    </Typography>
                   </Grid>
 
-                  {viewMode === 'form' ? (
-                    <>
-                      <Grid item xs={12} md={6}>
-                        <DatePicker
-                          label="Appointment Date"
-                          value={formData.appointmentDate}
-                          onChange={(date) => handleInputChange('appointmentDate', date)}
-                          shouldDisableDate={isWeekend}
-                          minDate={dayjs()}
-                          maxDate={dayjs().add(3, 'month')}
-                          slotProps={{
-                            textField: {
-                              fullWidth: true,
-                              required: true
-                            }
-                          }}
-                        />
-                      </Grid>
-
-                      <Grid item xs={12} md={6}>
-                        <FormControl fullWidth required disabled={!formData.appointmentDate}>
-                          <InputLabel>
-                            <Box display="flex" alignItems="center">
-                              <AccessTime sx={{ mr: 1, fontSize: 20 }} />
-                              Appointment Time
-                            </Box>
-                          </InputLabel>
-                          <Select
-                            value={formData.appointmentTime}
-                            label="Appointment Time"
-                            onChange={(e) => handleInputChange('appointmentTime', e.target.value)}
-                          >
-                            {loadingSlots ? (
-                              <MenuItem disabled>
-                                <CircularProgress size={20} sx={{ mr: 1 }} />
-                                Loading available times...
-                              </MenuItem>
-                            ) : (
-                              availableSlots.map((slot) => (
-                                <MenuItem key={slot} value={slot}>
-                                  {slot}
-                                </MenuItem>
-                              ))
-                            )}
-                          </Select>
-                        </FormControl>
-                      </Grid>
-                    </>
-                  ) : (
-                    <Grid item xs={12}>
-                      <Paper elevation={1} sx={{ p: 2 }}>
-                        <BookingCalendar 
-                          onSelectTimeSlot={handleTimeSlotSelect}
-                          selectedService={formData.service}
-                        />
-                        
-                        {formData.appointmentDate && formData.appointmentTime && (
-                          <Box sx={{ mt: 2, p: 1, bgcolor: 'primary.light', color: 'white', borderRadius: 1 }}>
-                            <Typography variant="subtitle1" align="center">
-                              Selected: {dayjs(formData.appointmentDate).format('dddd, MMMM D')} at {formData.appointmentTime}
-                            </Typography>
-                          </Box>
+                  <Grid item xs={12} md={6}>
+                    <DatePicker
+                      label="Appointment Date"
+                      value={formData.appointmentDate}
+                      onChange={(date) => handleInputChange('appointmentDate', date)}
+                      shouldDisableDate={(date) => {
+                        // Disable weekends (Saturday = 6, Sunday = 0)
+                        const day = date.day();
+                        return day === 0 || day === 6;
+                      }}
+                      minDate={dayjs()}
+                      maxDate={dayjs().add(3, 'month')}
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                          required: true,
+                          helperText: 'Select a weekday (Monday-Friday)'
+                        }
+                      }}
+                    />
+                  </Grid>
+                  
+                  <Grid item xs={12} md={6}>
+                    <FormControl fullWidth required>
+                      <InputLabel>
+                        <Box display="flex" alignItems="center">
+                          <AccessTime sx={{ mr: 1, fontSize: 20 }} />
+                          Appointment Time
+                        </Box>
+                      </InputLabel>
+                      <Select
+                        value={formData.appointmentTime}
+                        label="Appointment Time"
+                        onChange={(e) => handleInputChange('appointmentTime', e.target.value)}
+                        disabled={!formData.appointmentDate}
+                      >
+                        {loadingSlots ? (
+                          <MenuItem disabled>
+                            <CircularProgress size={20} sx={{ mr: 1 }} />
+                            Loading available times...
+                          </MenuItem>
+                        ) : (
+                          availableSlots.map((slot) => (
+                            <MenuItem key={slot} value={slot}>
+                              {slot}
+                            </MenuItem>
+                          ))
                         )}
-                      </Paper>
-                    </Grid>
-                  )}
+                      </Select>
+                    </FormControl>
+                  </Grid>
 
                   {/* Hair Style Inspiration Images */}
                   <Grid item xs={12}>

@@ -348,7 +348,7 @@ router.get('/availability/:date', async (req, res) => {
 // Get available time slots for a date range
 router.get('/availability', async (req, res) => {
   try {
-    const { startDate, endDate, serviceId, staffId } = req.query;
+    const { startDate, endDate, serviceId } = req.query;
     
     if (!startDate || !endDate) {
       return res.status(400).json({ message: 'Start date and end date are required' });
@@ -374,10 +374,7 @@ router.get('/availability', async (req, res) => {
       status: { in: ['pending', 'confirmed'] }
     };
     
-    // Filter by staff if provided
-    if (staffId) {
-      where.staffId = staffId;
-    }
+    // Note: staffId filtering removed as bookings no longer have staff assignment
     
     const bookings = await prisma.booking.findMany({
       where,
