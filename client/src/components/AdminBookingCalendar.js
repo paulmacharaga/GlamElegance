@@ -91,11 +91,12 @@ const AdminBookingCalendar = () => {
       }
 
       const response = await api.get(url);
-      setBookings(response.data.bookings);
+      setBookings(response.data.bookings || []);
       setError(null);
     } catch (error) {
       console.error('Error fetching bookings:', error);
       setError('Failed to load bookings');
+      setBookings([]); // Set empty array to show calendar even when API fails
       toast.error('Failed to load bookings');
     } finally {
       setLoading(false);
@@ -219,11 +220,11 @@ const AdminBookingCalendar = () => {
       const date = startOfWeek.add(day, 'day').format('YYYY-MM-DD');
       return bookings.filter(booking => {
         try {
-          if (!booking || !booking.appointmentDate || !booking.appointmentTime) {
+          if (!booking || !booking.bookingDate || !booking.bookingTime) {
             return false;
           }
-          const bookingDate = dayjs(booking.appointmentDate).format('YYYY-MM-DD');
-          return bookingDate === date && booking.appointmentTime === time;
+          const bookingDate = dayjs(booking.bookingDate).format('YYYY-MM-DD');
+          return bookingDate === date && booking.bookingTime === time;
         } catch (error) {
           console.error('Error filtering booking:', error, booking);
           return false;
@@ -364,21 +365,22 @@ const AdminBookingCalendar = () => {
                           p: 0.5
                         }}
                       >
-                        {dayBookings.map((booking) => (
-                          <Card 
-                            key={booking._id} 
-                            sx={{ 
-                              mb: 0.5, 
-                              minHeight: 60,
-                              bgcolor: getStatusColor(booking.status) === 'success' ? 'success.light' : 
-                                     getStatusColor(booking.status) === 'warning' ? 'warning.light' : 
-                                     getStatusColor(booking.status) === 'info' ? 'info.light' : 'error.light',
-                              '&:hover': { 
-                                transform: 'scale(1.02)',
-                                transition: 'transform 0.2s'
-                              }
-                            }}
-                          >
+                        {dayBookings.length > 0 ? (
+                          dayBookings.map((booking) => (
+                            <Card 
+                              key={booking._id} 
+                              sx={{ 
+                                mb: 0.5, 
+                                minHeight: 60,
+                                bgcolor: getStatusColor(booking.status) === 'success' ? 'success.light' : 
+                                       getStatusColor(booking.status) === 'warning' ? 'warning.light' : 
+                                       getStatusColor(booking.status) === 'info' ? 'info.light' : 'error.light',
+                                '&:hover': { 
+                                  transform: 'scale(1.02)',
+                                  transition: 'transform 0.2s'
+                                }
+                              }}
+                            >
                             <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                 <Box sx={{ flex: 1 }}>
@@ -432,7 +434,21 @@ const AdminBookingCalendar = () => {
                               </Box>
                             </CardContent>
                           </Card>
-                        ))}
+                          ))
+                        ) : (
+                          // Show empty slot when no bookings
+                          <Box sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            height: '100%',
+                            minHeight: '60px',
+                            color: 'text.disabled',
+                            fontSize: '0.75rem'
+                          }}>
+                            {day.isClosed ? 'Closed' : ''}
+                          </Box>
+                        )}
                       </Box>
                     </Grid>
                   );
