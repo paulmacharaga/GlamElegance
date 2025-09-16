@@ -13,18 +13,22 @@ router.post('/login', [
   body('email').isEmail().withMessage('Valid email is required'),
   body('password').notEmpty().withMessage('Password is required')
 ], async (req, res) => {
+  console.log('🔑 Staff login attempt:', { email: req.body.email });
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { email, password } = req.body;
 
     // Find staff member by email
+    console.log('🔍 Looking up staff member by email:', email);
     const staff = await prisma.staff.findUnique({
       where: { email }
     });
+    console.log('📝 Found staff member:', staff ? 'Yes' : 'No');
 
     if (!staff) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -35,12 +39,15 @@ router.post('/login', [
     }
 
     // Check password
+    console.log('🔑 Verifying password...');
     const isPasswordValid = await bcrypt.compare(password, staff.password);
     if (!isPasswordValid) {
+      console.log('❌ Invalid password');
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Generate JWT token
+    console.log('🔑 Generating JWT token...');
     const token = jwt.sign(
       { 
         staffId: staff.id, 
@@ -52,20 +59,28 @@ router.post('/login', [
       { expiresIn: '24h' }
     );
 
-    res.json({
+    console.log('✅ Login successful');
+    res.json({ 
       message: 'Login successful',
-      token,
-      staff: {
-        id: staff.id,
-        name: staff.name,
-        email: staff.email,
-        role: staff.role
-      }
+      token, 
+      staff: { 
+        id: staff.id, 
+        name: staff.name, 
+        email: staff.email, 
+        role: staff.role 
+      } 
     });
-
   } catch (error) {
-    console.error('Staff login error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('❌ Login error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      ...error
+    });
+    res.status(500).json({ 
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
