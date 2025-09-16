@@ -1,7 +1,10 @@
 const express = require('express');
-const router = express.Router();
+const bcrypt = require('bcryptjs');
+const { body, validationResult } = require('express-validator');
 const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
+
+const router = express.Router();
 
 // Get all staff members
 router.get('/', async (req, res) => {
@@ -50,20 +53,36 @@ router.post('/', auth, async (req, res) => {
     const { 
       name, 
       email, 
-      phone
+      phone,
+      password,
+      role = 'staff'
     } = req.body;
     
     // Validate required fields
-    if (!name) {
-      return res.status(400).json({ message: 'Please provide name' });
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: 'Please provide name, email, and password' });
     }
+    
+    // Check if email already exists
+    const existingStaff = await prisma.staff.findUnique({
+      where: { email }
+    });
+    
+    if (existingStaff) {
+      return res.status(400).json({ message: 'Email already exists' });
+    }
+    
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 12);
     
     // Create new staff member
     const newStaff = await prisma.staff.create({
       data: {
         name,
         email,
-        phone
+        phone,
+        password: hashedPassword,
+        role
       }
     });
     

@@ -18,6 +18,7 @@ const analyticsRoutes = require('./routes/analytics');
 const googleTokenRoutes = require('./routes/googleToken');
 const serviceRoutes = require('./routes/services');
 const staffRoutes = require('./routes/staff');
+const staffAuthRoutes = require('./routes/staff-auth');
 const loyaltyRoutes = require('./routes/loyalty');
 const testRoutes = require('./routes/test');
 
@@ -120,13 +121,14 @@ connectDB();
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/auth', googleTokenRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/qr', qrRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/google-token', googleTokenRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/staff', staffRoutes);
+app.use('/api/staff-auth', staffAuthRoutes);
 app.use('/api/loyalty', loyaltyRoutes);
 app.use('/api/test', testRoutes);
 

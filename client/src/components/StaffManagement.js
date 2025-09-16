@@ -55,6 +55,8 @@ const StaffManagement = () => {
     title: 'Stylist',
     email: '',
     phone: '',
+    password: '',
+    role: 'staff',
     bio: '',
     photo: '',
     specialties: [],
@@ -176,12 +178,14 @@ const StaffManagement = () => {
       title: staffMember.title || 'Stylist',
       email: staffMember.email || '',
       phone: staffMember.phone || '',
+      password: '', // Don't pre-fill password for security
+      role: staffMember.role || 'staff',
       bio: staffMember.bio || '',
       photo: staffMember.photo || '',
       specialties: staffMember.specialties || [],
-      services: (staffMember.services || []).map(service => 
+      services: Array.isArray(staffMember.services) ? staffMember.services.map(service => 
         typeof service === 'string' ? service : service._id
-      ),
+      ) : [],
       workingHours: staffMember.workingHours || {
         monday: { start: '09:00', end: '17:00', isWorking: true },
         tuesday: { start: '09:00', end: '17:00', isWorking: true },
@@ -255,15 +259,12 @@ const StaffManagement = () => {
 
   // Get service names for a staff member
   const getServiceNames = (staffMember) => {
-    if (!staffMember.services || staffMember.services.length === 0) return '-';
+    if (!staffMember.services || !Array.isArray(staffMember.services) || staffMember.services.length === 0) return '-';
     
     return staffMember.services.map(service => {
-      if (typeof service === 'string') {
-        const foundService = services.find(s => s._id === service);
-        return foundService ? foundService.name : '';
-      }
-      return service.name;
-    }).filter(Boolean).join(', ');
+      const serviceObj = services.find(s => s._id === service || s._id === service._id);
+      return serviceObj ? serviceObj.name : 'Unknown Service';
+    }).join(', ');
   };
 
   return (
