@@ -43,16 +43,19 @@ const AdminLogin = () => {
 
     setLoading(true);
     try {
-      console.log('🚀 Starting login attempt...');
-      console.log('Form data:', { username: formData.username, password: '***' });
+      console.log('🚀 Starting staff login attempt...');
+      console.log('Form data:', { email: formData.username, password: '***' });
 
-      // Try with fetch first as a fallback
-      const response = await fetch('/api/auth/login', {
+      // Use the staff authentication endpoint
+      const response = await fetch('/api/staff-auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          email: formData.username,
+          password: formData.password
+        }),
       });
 
       console.log('📡 Response status:', response.status);
@@ -64,13 +67,17 @@ const AdminLogin = () => {
       }
 
       const data = await response.json();
-      console.log('✅ Login successful:', { hasToken: !!data.token, user: data.user });
+      console.log('✅ Staff login successful:', { hasToken: !!data.token, staff: data.staff });
 
-      // Store token in localStorage
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      // Store staff token and info in localStorage
+      localStorage.setItem('staffToken', data.token);
+      localStorage.setItem('staff', JSON.stringify(data.staff));
+      
+      // Clear any existing user tokens to avoid conflicts
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
 
-      toast.success('Login successful!');
+      toast.success('Staff login successful!');
       navigate('/admin/dashboard');
     } catch (error) {
       console.error('❌ Login error:', error);

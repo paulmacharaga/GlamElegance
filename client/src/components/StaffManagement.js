@@ -83,14 +83,29 @@ const StaffManagement = () => {
   const fetchStaff = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('staffToken');
+      if (!token) {
+        throw new Error('No staff authentication token found');
+      }
+      
       const response = await axios.get('/api/staff', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        withCredentials: true
       });
       setStaff(response.data);
     } catch (error) {
       console.error('Error fetching staff:', error);
-      toast.error('Failed to load staff members');
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('staffToken');
+        localStorage.removeItem('staff');
+        window.location.href = '/admin';
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to load staff members');
+      }
     } finally {
       setLoading(false);
     }
@@ -99,13 +114,28 @@ const StaffManagement = () => {
   // Fetch all services for selection
   const fetchServices = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('staffToken');
+      if (!token) {
+        console.error('No staff token available');
+        return;
+      }
+      
       const response = await axios.get('/api/services', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        withCredentials: true
       });
       setServices(response.data);
     } catch (error) {
       console.error('Error fetching services:', error);
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('staffToken');
+        localStorage.removeItem('staff');
+        window.location.href = '/admin';
+      }
     }
   };
 
@@ -234,7 +264,11 @@ const StaffManagement = () => {
     if (!validateForm()) return;
     
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('staffToken');
+      if (!token) {
+        throw new Error('No staff authentication token found');
+      }
+
       const dataToSend = { ...formData };
       
       // Remove confirmPassword before sending
@@ -245,15 +279,19 @@ const StaffManagement = () => {
         delete dataToSend.password;
       }
       
+      const config = {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        withCredentials: true
+      };
+      
       if (dialogMode === 'add') {
-        await axios.post('/api/staff', dataToSend, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await axios.post('/api/staff', dataToSend, config);
         toast.success('Staff member added successfully');
       } else {
-        await axios.put(`/api/staff/${currentStaff._id}`, dataToSend, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await axios.put(`/api/staff/${currentStaff._id}`, dataToSend, config);
         toast.success('Staff member updated successfully');
       }
       
@@ -261,7 +299,14 @@ const StaffManagement = () => {
       fetchStaff();
     } catch (error) {
       console.error('Error saving staff member:', error);
-      toast.error(error.response?.data?.message || 'Failed to save staff member');
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('staffToken');
+        localStorage.removeItem('staff');
+        window.location.href = '/admin';
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to save staff member');
+      }
     }
   };
   
@@ -281,15 +326,31 @@ const StaffManagement = () => {
   const handleDeleteStaff = async (staffId) => {
     if (window.confirm('Are you sure you want to delete this staff member?')) {
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('staffToken');
+        if (!token) {
+          throw new Error('No staff authentication token found');
+        }
+
         await axios.delete(`/api/staff/${staffId}`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          withCredentials: true
         });
+        
         toast.success('Staff member deleted successfully');
         fetchStaff();
       } catch (error) {
         console.error('Error deleting staff member:', error);
-        toast.error('Failed to delete staff member');
+        if (error.response?.status === 401) {
+          toast.error('Session expired. Please log in again.');
+          localStorage.removeItem('staffToken');
+          localStorage.removeItem('staff');
+          window.location.href = '/admin';
+        } else {
+          toast.error(error.response?.data?.message || 'Failed to delete staff member');
+        }
       }
     }
   };

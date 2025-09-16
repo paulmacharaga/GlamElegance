@@ -2,12 +2,12 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
 const prisma = require('../lib/prisma');
-const auth = require('../middleware/auth');
+const staffAuth = require('../middleware/staffAuth');
 
 const router = express.Router();
 
-// Get all staff members
-router.get('/', async (req, res) => {
+// Get all staff members (admin only)
+router.get('/', staffAuth, staffAuth.staffAdmin, async (req, res) => {
   try {
     const staff = await prisma.staff.findMany({
       orderBy: {
@@ -34,8 +34,12 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get a single staff member
-router.get('/:id', async (req, res) => {
+// Get a single staff member (admin or the staff member themselves)
+router.get('/:id', staffAuth, async (req, res) => {
+  // Check if the request is from the same staff member or an admin
+  if (req.staff.id !== req.params.id && req.staff.role !== 'admin') {
+    return res.status(403).json({ message: 'Not authorized to access this resource' });
+  }
   try {
     const staffMember = await prisma.staff.findUnique({
       where: { id: req.params.id },
@@ -63,10 +67,21 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create a new staff member (admin only)
-router.post('/', auth, async (req, res) => {
+router.post(
+  '/',
+  staffAuth,
+  staffAuth.staffAdmin,
+  [
+    body('name').trim().notEmpty().withMessage('Name is required'),
+    body('email').isEmail().withMessage('Please include a valid email'),
+    body('password')
+      .isLength({ min: 6 })
+      .withMessage('Password must be at least 6 characters long'),
+  ],
+  async (req, res) => {
   try {
     // Check if user is admin
-    if (req.user.role !== 'admin') {
+    if (req.staff.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied. Admin only.' });
     }
     
@@ -123,14 +138,20 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// Update a staff member (admin only)
-router.put('/:id', auth, async (req, res) => {
-  try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'Access denied. Admin only.' });
+// Update a staff member (admin or the staff member themselves)
+router.put(
+  '/:id',
+  staffAuth,
+  [
+    body('name').optional().trim().notEmpty().withMessage('Name cannot be empty'),
+    body('email').optional().isEmail().withMessage('Please include a valid email'),
+  ],
+  async (req, res) => {
+    // Check if the request is from the same staff member or an admin
+    if (req.staff.id !== req.params.id && req.staff.role !== 'admin') {
+      return res.status(403).json({ message: 'Not authorized to update this staff member' });
     }
-    
+  try {
     const { 
       name, 
       email, 
@@ -172,10 +193,10 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // Delete a staff member (admin only)
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', staffAuth, staffAuth.staffAdmin, async (req, res) => {
   try {
     // Check if user is admin
-    if (req.user.role !== 'admin') {
+    if (req.staff.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied. Admin only.' });
     }
     

@@ -4,362 +4,89 @@ import {
   Container,
   Box,
   Typography,
-  Card,
-  CardContent,
-  Grid,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
   Button,
   IconButton,
   Tab,
   Tabs,
-  Rating,
   CircularProgress,
   Alert,
   AppBar,
-  Toolbar,
-  Menu,
-  MenuItem
+  Toolbar
 } from '@mui/material';
 import {
   Dashboard,
   BookOnline,
-  Feedback,
-  QrCode,
-  Logout,
-  MoreVert,
-  Refresh,
-  Google,
   Spa,
   People,
-  CalendarMonth,
-  Stars
+  Stars,
+  Logout
 } from '@mui/icons-material';
-import GoogleAccountManager from './GoogleAccountManager';
+// GoogleAccountManager import removed as it's not used
 import ServiceManagement from './ServiceManagement';
 import StaffManagement from './StaffManagement';
 import AdminBookingCalendar from './AdminBookingCalendar';
 import LoyaltyManagement from './LoyaltyManagement';
-import api from '../utils/api';
+// API import removed as it's not used
 import toast from 'react-hot-toast';
 import glamLogo from '../assets/glam-new-logo.png';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const [currentTab, setCurrentTab] = useState(0);
+  const [activeTab, setActiveTab] = useState(0);
+  // State for action menu (removed as it's not used)
   const [loading, setLoading] = useState(true);
-  const [bookings, setBookings] = useState([]);
-  const [feedback, setFeedback] = useState([]);
-  const [analytics, setAnalytics] = useState(null);
-  const [user, setUser] = useState(null);
-  const [anchorEl, setAnchorEl] = useState(null);
+  const [staff, setStaff] = useState(null);
 
-  const handleLogout = useCallback(() => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  const handleLogout = () => {
+    localStorage.removeItem('staffToken');
+    localStorage.removeItem('staff');
     navigate('/admin');
-  }, [navigate]);
+  };
 
-  // Define loadDashboardData with useCallback to prevent it from changing on every render
-  const loadDashboardData = useCallback(async () => {
-    setLoading(true);
+  const fetchDashboardData = useCallback(async () => {
     try {
-      const [bookingsRes, feedbackRes, analyticsRes] = await Promise.all([
-        api.get('/api/bookings'),
-        api.get('/api/feedback'),
-        api.get('/api/analytics/dashboard')
-      ]);
-
-      setBookings(bookingsRes.data.bookings);
-      setFeedback(feedbackRes.data.feedback);
-      setAnalytics(analyticsRes.data);
+      setLoading(true);
+      const staffData = JSON.parse(localStorage.getItem('staff'));
+      setStaff(staffData);
     } catch (error) {
-      console.error('Failed to load dashboard data:', error);
-      toast.error('Failed to load dashboard data');
-      
+      console.error('Error fetching dashboard data:', error);
       if (error.response?.status === 401) {
-        handleLogout();
+        toast.error('Session expired. Please log in again.');
+        localStorage.removeItem('staffToken');
+        localStorage.removeItem('staff');
+        navigate('/admin');
       }
     } finally {
       setLoading(false);
     }
-  }, [handleLogout]);
-  
+  }, [navigate]);
+
   useEffect(() => {
-    // Check authentication
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
-    
-    if (!token || !userData) {
+    const staffToken = localStorage.getItem('staffToken');
+    if (!staffToken) {
       navigate('/admin');
       return;
     }
+    
+    fetchDashboardData();
+  }, [fetchDashboardData, navigate]);
 
-    setUser(JSON.parse(userData));
-
-    loadDashboardData();
-  }, [navigate, loadDashboardData]);
-
-  // loadDashboardData is now defined above with useCallback
-
-  // handleLogout is now defined above with useCallback
-
-  const updateBookingStatus = async (bookingId, status) => {
-    try {
-      await api.patch(`/api/bookings/${bookingId}/status`, { status });
-      toast.success('Booking status updated');
-      loadDashboardData();
-    } catch (error) {
-      console.error('Failed to update booking status:', error);
-      toast.error('Failed to update booking status');
-    }
+  const handleTabChange = (event, newValue) => {
+    setActiveTab(newValue);
+    const routes = ['/admin/dashboard', '/admin/bookings', '/admin/services', '/admin/staff', '/admin/loyalty'];
+    navigate(routes[newValue] || '/admin/dashboard');
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      pending: 'warning',
-      confirmed: 'info',
-      completed: 'success',
-      cancelled: 'error'
-    };
-    return colors[status] || 'default';
-  };
+  const menuItems = [
+    { icon: <Dashboard />, label: 'Dashboard', path: '/admin/dashboard', roles: ['admin', 'staff'] },
+    { icon: <BookOnline />, label: 'Bookings', path: '/admin/bookings', roles: ['admin', 'staff'] },
+    { icon: <Spa />, label: 'Services', path: '/admin/services', roles: ['admin'] },
+    { icon: <People />, label: 'Staff', path: '/admin/staff', roles: ['admin'] },
+    { icon: <Stars />, label: 'Loyalty', path: '/admin/loyalty', roles: ['admin'] },
+  ];
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  const formatDateTime = (dateString) => {
-    return new Date(dateString).toLocaleString();
-  };
-
-  const DashboardOverview = () => (
-    <Grid container spacing={3}>
-      {/* Summary Cards */}
-      <Grid item xs={12} sm={6} md={3}>
-        <Card>
-          <CardContent sx={{ textAlign: 'center' }}>
-            <QrCode sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
-            <Typography variant="h4" color="primary">
-              {analytics?.summary?.qrScans || 0}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              QR Scans
-            </Typography>
-          </CardContent>
-        </Card>
-      </Grid>
-
-      <Grid item xs={12} sm={6} md={3}>
-        <Card>
-          <CardContent sx={{ textAlign: 'center' }}>
-            <BookOnline sx={{ fontSize: 40, color: 'secondary.main', mb: 1 }} />
-            <Typography variant="h4" color="secondary">
-              {analytics?.summary?.bookingsCount || 0}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Bookings
-            </Typography>
-          </CardContent>
-        </Card>
-      </Grid>
-
-      <Grid item xs={12} sm={6} md={3}>
-        <Card>
-          <CardContent sx={{ textAlign: 'center' }}>
-            <Feedback sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
-            <Typography variant="h4" color="success.main">
-              {analytics?.summary?.feedbackCount || 0}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Feedback
-            </Typography>
-          </CardContent>
-        </Card>
-      </Grid>
-
-      <Grid item xs={12} sm={6} md={3}>
-        <Card>
-          <CardContent sx={{ textAlign: 'center' }}>
-            <Rating value={analytics?.summary?.averageRating || 0} readOnly />
-            <Typography variant="h4" color="warning.main">
-              {analytics?.summary?.averageRating?.toFixed(1) || '0.0'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Avg Rating
-            </Typography>
-          </CardContent>
-        </Card>
-      </Grid>
-
-      {/* Recent Bookings */}
-      <Grid item xs={12}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Recent Bookings
-            </Typography>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Customer</TableCell>
-                    <TableCell>Service</TableCell>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Time</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {bookings.slice(0, 5).map((booking) => (
-                    <TableRow key={booking._id}>
-                      <TableCell>{booking.customerName}</TableCell>
-                      <TableCell>{booking.service?.name || booking.service}</TableCell>
-                      <TableCell>{formatDate(booking.appointmentDate)}</TableCell>
-                      <TableCell>{booking.appointmentTime}</TableCell>
-                      <TableCell>
-                        <Chip 
-                          label={booking.status} 
-                          color={getStatusColor(booking.status)}
-                          size="small"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          size="small"
-                          onClick={() => updateBookingStatus(booking._id, 'confirmed')}
-                          disabled={booking.status !== 'pending'}
-                        >
-                          Confirm
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </CardContent>
-        </Card>
-      </Grid>
-    </Grid>
-  );
-
-  const BookingsTab = () => (
-    <Card>
-      <CardContent>
-        <Box display="flex" justifyContent="between" alignItems="center" mb={2}>
-          <Typography variant="h6">All Bookings</Typography>
-          <Button startIcon={<Refresh />} onClick={loadDashboardData}>
-            Refresh
-          </Button>
-        </Box>
-        <TableContainer>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Customer</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Phone</TableCell>
-                <TableCell>Service</TableCell>
-                <TableCell>Stylist</TableCell>
-                <TableCell>Date</TableCell>
-                <TableCell>Time</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {bookings.map((booking) => (
-                <TableRow key={booking._id}>
-                  <TableCell>{booking.customerName}</TableCell>
-                  <TableCell>{booking.customerEmail}</TableCell>
-                  <TableCell>{booking.customerPhone}</TableCell>
-                  <TableCell>
-                    <Box>
-                      <Typography variant="body2">{booking.service?.name || booking.service}</Typography>
-                      {booking.service?.price && (
-                        <Typography variant="caption" color="text.secondary">
-                          ${booking.service.price} • {booking.service.duration} min
-                        </Typography>
-                      )}
-                    </Box>
-                  </TableCell>
-                  <TableCell>{booking.stylist || 'Any'}</TableCell>
-                  <TableCell>{formatDate(booking.appointmentDate)}</TableCell>
-                  <TableCell>{booking.appointmentTime}</TableCell>
-                  <TableCell>
-                    <Chip 
-                      label={booking.status} 
-                      color={getStatusColor(booking.status)}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <IconButton
-                      onClick={(e) => {
-                        setAnchorEl(e.currentTarget);
-                        // Store booking ID for menu actions
-                        e.currentTarget.dataset.bookingId = booking._id;
-                      }}
-                    >
-                      <MoreVert />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </CardContent>
-    </Card>
-  );
-
-  const FeedbackTab = () => (
-    <Card>
-      <CardContent>
-        <Typography variant="h6" gutterBottom>
-          Customer Feedback
-        </Typography>
-        <Grid container spacing={2}>
-          {feedback.map((item) => (
-            <Grid item xs={12} md={6} key={item._id}>
-              <Card variant="outlined">
-                <CardContent>
-                  <Box display="flex" justifyContent="between" alignItems="center" mb={1}>
-                    <Rating value={item.rating} readOnly size="small" />
-                    <Typography variant="caption" color="text.secondary">
-                      {formatDateTime(item.createdAt)}
-                    </Typography>
-                  </Box>
-                  {item.comment && (
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      "{item.comment}"
-                    </Typography>
-                  )}
-                  <Box display="flex" gap={1} flexWrap="wrap">
-                    {item.customerName && (
-                      <Chip label={item.customerName} size="small" variant="outlined" />
-                    )}
-                    {item.service && (
-                      <Chip label={item.service} size="small" variant="outlined" />
-                    )}
-                    {item.stylist && (
-                      <Chip label={item.stylist} size="small" variant="outlined" />
-                    )}
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </CardContent>
-    </Card>
+  const filteredMenuItems = menuItems.filter(item => 
+    item.roles.includes(staff?.role || '')
   );
 
   if (loading) {
@@ -372,7 +99,6 @@ const AdminDashboard = () => {
 
   return (
     <Box sx={{ flexGrow: 1 }}>
-      {/* App Bar */}
       <AppBar position="static">
         <Toolbar>
           <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
@@ -400,64 +126,61 @@ const AdminDashboard = () => {
       </AppBar>
 
       <Container maxWidth="lg" sx={{ mt: 3, mb: 3 }}>
-        {user && (
+        {staff && (
           <Alert severity="info" sx={{ mb: 3 }}>
-            Welcome back, {user.name}! You are logged in as {user.role}.
+            Welcome back, {staff.name}! You are logged in as {staff.role}.
           </Alert>
         )}
 
-        {/* Tabs */}
-        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-          <Tabs value={currentTab} onChange={(e, newValue) => setCurrentTab(newValue)}>
-            <Tab icon={<Dashboard />} iconPosition="start" label="Dashboard" />
-            <Tab icon={<BookOnline />} iconPosition="start" label="Bookings" />
-            <Tab icon={<CalendarMonth />} iconPosition="start" label="Calendar" />
-            <Tab icon={<Feedback />} iconPosition="start" label="Feedback" />
-            <Tab icon={<Spa />} iconPosition="start" label="Services" />
-            <Tab icon={<People />} iconPosition="start" label="Staff" />
-            <Tab icon={<Stars />} iconPosition="start" label="Loyalty" />
-            <Tab icon={<Google />} iconPosition="start" label="Google Account" />
+        <Box sx={{ display: 'flex' }}>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            orientation="vertical"
+            variant="scrollable"
+            sx={{ width: 240, minWidth: 240, borderRight: 1, borderColor: 'divider' }}
+          >
+            {filteredMenuItems.map((item, index) => {
+              const isActive = window.location.pathname === item.path;
+              return (
+                <Tab
+                  key={item.path}
+                  icon={item.icon}
+                  label={item.label}
+                  onClick={() => navigate(item.path)}
+                  sx={{
+                    minHeight: 64,
+                    justifyContent: 'flex-start',
+                    textTransform: 'none',
+                    fontSize: '0.9rem',
+                    backgroundColor: isActive ? 'rgba(107, 44, 122, 0.1)' : 'transparent',
+                    color: isActive ? 'primary.main' : 'inherit',
+                    fontWeight: isActive ? 500 : 'normal',
+                    '&:hover': {
+                      backgroundColor: 'rgba(107, 44, 122, 0.05)',
+                    },
+                  }}
+                />
+              );
+            })}
           </Tabs>
+
+          <Box sx={{ flexGrow: 1, p: 3 }}>
+            {/* Tab Content */}
+            {activeTab === 0 && (
+              <Box>
+                <Typography variant="h4" gutterBottom>Dashboard Overview</Typography>
+                {/* Add your dashboard overview content here */}
+              </Box>
+            )}
+            {activeTab === 1 && <AdminBookingCalendar />}
+            {activeTab === 2 && <ServiceManagement />}
+            {activeTab === 3 && <StaffManagement />}
+            {activeTab === 4 && <LoyaltyManagement />}
+          </Box>
         </Box>
 
-        {/* Tab Content */}
-        {currentTab === 0 && <DashboardOverview />}
-        {currentTab === 1 && <BookingsTab />}
-        {currentTab === 2 && <AdminBookingCalendar />}
-        {currentTab === 3 && <FeedbackTab />}
-        {currentTab === 4 && <ServiceManagement />}
-        {currentTab === 5 && <StaffManagement />}
-        {currentTab === 6 && <LoyaltyManagement />}
-        {currentTab === 7 && <GoogleAccountManager />}
-
-        {/* Action Menu */}
-        <Menu
-          anchorEl={anchorEl}
-          open={Boolean(anchorEl)}
-          onClose={() => setAnchorEl(null)}
-        >
-          <MenuItem onClick={() => {
-            const bookingId = anchorEl?.dataset?.bookingId;
-            if (bookingId) updateBookingStatus(bookingId, 'confirmed');
-            setAnchorEl(null);
-          }}>
-            Confirm
-          </MenuItem>
-          <MenuItem onClick={() => {
-            const bookingId = anchorEl?.dataset?.bookingId;
-            if (bookingId) updateBookingStatus(bookingId, 'completed');
-            setAnchorEl(null);
-          }}>
-            Mark Complete
-          </MenuItem>
-          <MenuItem onClick={() => {
-            const bookingId = anchorEl?.dataset?.bookingId;
-            if (bookingId) updateBookingStatus(bookingId, 'cancelled');
-            setAnchorEl(null);
-          }}>
-            Cancel
-          </MenuItem>
-        </Menu>
+        {/* Action Menu - Removed as it's not used in this component */}
       </Container>
     </Box>
   );

@@ -14,6 +14,8 @@ import QRGenerator from './components/QRGenerator';
 import ThankYou from './components/ThankYou';
 import GoogleAuthSuccess from './components/GoogleAuthSuccess';
 import ErrorBoundary from './components/ErrorBoundary';
+import ProtectedRoute from './components/ProtectedRoute';
+import StaffManagement from './components/StaffManagement';
 
 // Create Glam Elegance theme
 const theme = createTheme({
@@ -93,8 +95,14 @@ function App() {
               <Route path="/book" element={<BookingForm />} />
               <Route path="/feedback" element={<FeedbackForm />} />
               <Route path="/admin" element={<AdminLogin />} />
-              <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/qr" element={<QRGenerator />} />
+              
+              {/* Protected admin routes */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                <Route path="/admin/qr" element={<QRGenerator />} />
+                <Route path="/admin/staff" element={<StaffManagement />} />
+              </Route>
+              
               <Route path="/admin/google-auth-success" element={<GoogleAuthSuccess />} />
               <Route path="/thank-you" element={<ThankYou />} />
             </Routes>
