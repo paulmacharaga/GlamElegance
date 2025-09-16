@@ -35,7 +35,9 @@ import {
   Search as SearchIcon,
   Person as PersonIcon,
   Schedule as ScheduleIcon,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Visibility,
+  VisibilityOff
 } from '@mui/icons-material';
 import axios from 'axios';
 import toast from 'react-hot-toast';
@@ -49,6 +51,9 @@ const StaffManagement = () => {
   const [currentStaff, setCurrentStaff] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [tabValue, setTabValue] = useState(0);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -56,6 +61,7 @@ const StaffManagement = () => {
     email: '',
     phone: '',
     password: '',
+    confirmPassword: '',
     role: 'staff',
     bio: '',
     photo: '',
@@ -108,14 +114,6 @@ const StaffManagement = () => {
     fetchServices();
   }, []);
 
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData({
-      ...formData,
-      [name]: type === 'checkbox' ? checked : value
-    });
-  };
-
   const handleWorkingHoursChange = (day, field, value) => {
     setFormData({
       ...formData,
@@ -145,11 +143,16 @@ const StaffManagement = () => {
 
   const handleOpenAddDialog = () => {
     setDialogMode('add');
+    setCurrentStaff(null);
+    setPasswordError('');
     setFormData({
       name: '',
       title: 'Stylist',
       email: '',
       phone: '',
+      password: '',
+      confirmPassword: '',
+      role: 'staff',
       bio: '',
       photo: '',
       specialties: [],
@@ -206,17 +209,49 @@ const StaffManagement = () => {
     setCurrentStaff(null);
   };
 
+  const validateForm = () => {
+    // Password validation only for new staff or when password is being changed
+    if (dialogMode === 'add' && !formData.password) {
+      setPasswordError('Password is required');
+      return false;
+    }
+    
+    if (formData.password && formData.password.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      return false;
+    }
+    
+    if (formData.password !== formData.confirmPassword) {
+      setPasswordError('Passwords do not match');
+      return false;
+    }
+    
+    setPasswordError('');
+    return true;
+  };
+
   const handleSubmit = async () => {
+    if (!validateForm()) return;
+    
     try {
       const token = localStorage.getItem('token');
+      const dataToSend = { ...formData };
+      
+      // Remove confirmPassword before sending
+      delete dataToSend.confirmPassword;
+      
+      // Only include password if it was changed (for edit mode)
+      if (dialogMode === 'edit' && !dataToSend.password) {
+        delete dataToSend.password;
+      }
       
       if (dialogMode === 'add') {
-        await axios.post('/api/staff', formData, {
+        await axios.post('/api/staff', dataToSend, {
           headers: { Authorization: `Bearer ${token}` }
         });
         toast.success('Staff member added successfully');
       } else {
-        await axios.put(`/api/staff/${currentStaff._id}`, formData, {
+        await axios.put(`/api/staff/${currentStaff._id}`, dataToSend, {
           headers: { Authorization: `Bearer ${token}` }
         });
         toast.success('Staff member updated successfully');
@@ -227,6 +262,19 @@ const StaffManagement = () => {
     } catch (error) {
       console.error('Error saving staff member:', error);
       toast.error(error.response?.data?.message || 'Failed to save staff member');
+    }
+  };
+  
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+    
+    // Clear password error when user starts typing
+    if ((name === 'password' || name === 'confirmPassword') && passwordError) {
+      setPasswordError('');
     }
   };
 
@@ -431,6 +479,70 @@ const StaffManagement = () => {
                   onChange={handleInputChange}
                 />
               </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Role"
+                  name="role"
+                  value={formData.role}
+                  onChange={handleInputChange}
+                  SelectProps={{ native: true }}
+                >
+                  <option value="staff">Staff</option>
+                  <option value="admin">Admin</option>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label={dialogMode === 'add' ? 'Password *' : 'New Password'}
+                  name="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  required={dialogMode === 'add'}
+                  error={!!passwordError}
+                  helperText={passwordError}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          onClick={() => setShowPassword(!showPassword)}
+                          edge="end"
+                        >
+                          {showPassword ? <VisibilityOff /> : <Visibility />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+              {formData.password && (
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Confirm Password"
+                    name="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    error={!!passwordError}
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            edge="end"
+                          >
+                            {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+              )}
               <Grid item xs={12}>
                 <Autocomplete
                   multiple

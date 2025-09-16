@@ -43,15 +43,17 @@ model Service {
 }
 
 model Staff {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  phone     String?
-  password  String
-  role      String   @default("staff") // "staff" or "admin"
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String   @id @default(cuid())
+  name              String
+  email             String   @unique
+  phone             String?
+  password          String
+  role              String   @default("staff") // "staff" or "admin"
+  isActive          Boolean  @default(true)
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@map("staff")
 }

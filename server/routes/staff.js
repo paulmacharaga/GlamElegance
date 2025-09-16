@@ -15,6 +15,16 @@ router.get('/', async (req, res) => {
       },
       where: {
         isActive: true
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true
       }
     });
     res.json(staff);
@@ -28,7 +38,17 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const staffMember = await prisma.staff.findUnique({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true
+      }
     });
     
     if (!staffMember) {
@@ -83,6 +103,16 @@ router.post('/', auth, async (req, res) => {
         phone,
         password: hashedPassword,
         role
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true
       }
     });
     
@@ -105,19 +135,34 @@ router.put('/:id', auth, async (req, res) => {
       name, 
       email, 
       phone,
-      isActive 
+      isActive,
+      password,
+      role
     } = req.body;
+    
+    // Prepare update data
+    const updateData = {
+      name,
+      email,
+      phone,
+      isActive,
+      role
+    };
+    
+    // Only update password if provided
+    if (password && password.trim() !== '') {
+      const hashedPassword = await bcrypt.hash(password, 12);
+      updateData.password = hashedPassword;
+    }
     
     // Find staff member and update
     const updatedStaff = await prisma.staff.update({
       where: { id: req.params.id },
-      data: {
-        name, 
-        email, 
-        phone,
-        isActive
-      }
+      data: updateData
     });
+    
+    // Don't send password hash in response
+    delete updatedStaff.password;
     
     res.json(updatedStaff);
   } catch (error) {

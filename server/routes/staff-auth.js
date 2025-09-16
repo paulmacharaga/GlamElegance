@@ -1,8 +1,10 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
 const prisma = require('../lib/prisma');
+const { sendPasswordResetEmail } = require('../utils/email');
 
 const router = express.Router();
 
@@ -111,10 +113,131 @@ router.put('/change-password', async (req, res) => {
       data: { password: hashedNewPassword }
     });
 
-    res.json({ message: 'Password updated successfully' });
+    // Generate a new token since password has changed
+    const newToken = jwt.sign(
+      { 
+        staffId: staff.id, 
+        email: staff.email, 
+        role: staff.role,
+        type: 'staff'
+      },
+      process.env.JWT_SECRET || 'fallback_secret',
+      { expiresIn: '24h' }
+    );
+
+    res.json({
+      message: 'Password changed successfully',
+      token: newToken,
+      staff: {
+        id: staff.id,
+        name: staff.name,
+        email: staff.email,
+        role: staff.role
+      }
+    });
 
   } catch (error) {
-    console.error('Password change error:', error);
+    console.error('Change password error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Forgot password - Generate reset token
+router.post('/forgot-password', [
+  body('email').isEmail().withMessage('Valid email is required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email } = req.body;
+
+    // Find staff member by email
+    const staff = await prisma.staff.findUnique({
+      where: { email }
+    });
+
+    if (!staff) {
+      // For security, don't reveal if email exists or not
+      return res.json({ message: 'If an account exists with this email, a password reset link has been sent' });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+
+    // Save reset token to database
+    await prisma.staff.update({
+      where: { id: staff.id },
+      data: {
+        resetToken,
+        resetTokenExpiry
+      }
+    });
+
+    // Send email with reset link
+    const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}&id=${staff.id}`;
+    
+    try {
+      await sendPasswordResetEmail(staff.email, resetUrl);
+      res.json({ message: 'Password reset instructions have been sent to your email' });
+    } catch (emailError) {
+      console.error('Error sending password reset email:', emailError);
+      res.status(500).json({ message: 'Error sending password reset email' });
+    }
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Reset password with token
+router.post('/reset-password', [
+  body('token').notEmpty().withMessage('Token is required'),
+  body('staffId').notEmpty().withMessage('User ID is required'),
+  body('newPassword').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { token, staffId, newPassword } = req.body;
+
+    // Find staff member with valid reset token
+    const staff = await prisma.staff.findFirst({
+      where: {
+        id: staffId,
+        resetToken: token,
+        resetTokenExpiry: {
+          gte: new Date() // Token not expired
+        }
+      }
+    });
+
+    if (!staff) {
+      return res.status(400).json({ message: 'Invalid or expired reset token' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    // Update password and clear reset token
+    await prisma.staff.update({
+      where: { id: staffId },
+      data: {
+        password: hashedPassword,
+        resetToken: null,
+        resetTokenExpiry: null
+      }
+    });
+
+    res.json({ message: 'Password has been reset successfully' });
+  } catch (error) {
+    console.error('Reset password error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

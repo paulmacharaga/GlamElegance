@@ -68,6 +68,56 @@ const sendBookingConfirmation = async (booking) => {
   }
 };
 
+const sendPasswordResetEmail = async (email, resetUrl) => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.log('Email configuration not set, skipping password reset email');
+    return;
+  }
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Password Reset - Hair Studio',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+        <div style="background-color: #2D1B69; color: white; padding: 20px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="margin: 0;">Hair Studio</h1>
+          <p style="margin: 10px 0 0 0;">Password Reset Request</p>
+        </div>
+        
+        <div style="background-color: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <h2 style="color: #2D1B69; margin-top: 0;">Reset Your Password</h2>
+          
+          <p>We received a request to reset your password. Click the button below to set a new password:</p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetUrl}" style="display: inline-block; background-color: #2D1B69; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+              Reset Password
+            </a>
+          </div>
+          
+          <p>If you didn't request this, you can safely ignore this email. Your password won't be changed until you access the link above and create a new one.</p>
+          
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #777;">
+            <p>This link will expire in 1 hour for security reasons.</p>
+            <p>If the button doesn't work, copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; background-color: #f5f5f5; padding: 10px; border-radius: 4px;">${resetUrl}</p>
+          </div>
+        </div>
+      </div>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log(`Password reset email sent to ${email}`);
+  } catch (error) {
+    console.error('Error sending password reset email:', error);
+    throw new Error('Failed to send password reset email');
+  }
+};
+
 module.exports = {
-  sendBookingConfirmation
+  sendBookingConfirmation,
+  sendPasswordResetEmail
 };
