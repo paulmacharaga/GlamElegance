@@ -39,6 +39,13 @@ const sendBookingConfirmation = async (booking) => {
             <p><strong>Date:</strong> ${new Date(booking.appointmentDate).toLocaleDateString()}</p>
             <p><strong>Time:</strong> ${booking.appointmentTime}</p>
             ${booking.notes ? `<p><strong>Notes:</strong> ${booking.notes}</p>` : ''}
+            ${booking.loyaltyPointsEarned ? 
+              `<div style="margin-top: 15px; padding: 10px; background-color: #e8f5e9; border-radius: 4px;">
+                <p style="margin: 0; color: #2e7d32; font-weight: 500;">
+                  🎉 You've earned ${booking.loyaltyPointsEarned} loyalty points for this booking!
+                </p>
+              </div>` 
+              : ''}
           </div>
           
           <div style="background-color: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0;">
@@ -47,7 +54,19 @@ const sendBookingConfirmation = async (booking) => {
               <li>Please arrive 10 minutes early for your appointment</li>
               <li>If you need to reschedule, please call us at least 24 hours in advance</li>
               <li>Bring any inspiration photos or specific requests</li>
+              ${booking.joinLoyalty ? 
+                `<li>You've been enrolled in our Loyalty Program! Check your points balance on your next visit</li>` 
+                : ''}
             </ul>
+            
+            ${booking.joinLoyalty ? `
+            <div style="margin-top: 15px; padding: 12px; background-color: #fff3e0; border-radius: 4px; border-left: 4px solid #ff9800;">
+              <h4 style="margin: 0 0 10px 0; color: #e65100;">Welcome to Our Loyalty Program!</h4>
+              <p style="margin: 0;">
+                Thank you for joining! You'll earn points with every visit that can be redeemed for discounts on future services. 
+                Keep an eye on your email for special member-only offers!
+              </p>
+            </div>` : ''}
           </div>
           
           <div style="text-align: center; margin: 30px 0;">

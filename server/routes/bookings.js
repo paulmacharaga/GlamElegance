@@ -65,7 +65,8 @@ router.post('/', upload.fields([
       service,
       appointmentDate,
       appointmentTime,
-      notes
+      notes,
+      joinLoyalty
     } = req.body;
 
     // Check if service exists and is active
@@ -111,36 +112,116 @@ router.post('/', upload.fields([
       });
     }
 
-    // Create booking
-    const booking = await prisma.booking.create({
-      data: {
-        customerName,
-        customerEmail,
-        customerPhone,
-        serviceId: serviceDoc.id,
-        bookingDate: new Date(appointmentDate),
-        bookingTime: appointmentTime,
-        notes,
-        inspirationImages,
-        currentHairImages: Object.keys(currentHairImages).length > 0 ? currentHairImages : null,
-        status: 'pending'
-      },
-      include: {
-        service: true
+    // Start a transaction
+    const booking = await prisma.$transaction(async (prisma) => {
+      // Create booking
+      const newBooking = await prisma.booking.create({
+        data: {
+          customerName,
+          customerEmail,
+          customerPhone,
+          service: serviceDoc.name,
+          bookingDate: new Date(appointmentDate),
+          bookingTime: appointmentTime,
+          status: 'pending',
+          notes: notes || '',
+          inspirationImages: inspirationImages.length > 0 ? inspirationImages : undefined,
+          currentHairImages: Object.keys(currentHairImages).length > 0 ? currentHairImages : undefined
+        }
+      });
+
+      // Handle loyalty program opt-in if selected
+      if (joinLoyalty === 'true' || joinLoyalty === true) {
+        // Check if customer already exists in loyalty program
+        let customerLoyalty = await prisma.customerLoyalty.findUnique({
+          where: { customerEmail }
+        });
+
+        if (!customerLoyalty) {
+          // Add customer to loyalty program
+          customerLoyalty = await prisma.customerLoyalty.create({
+            data: {
+              customerName,
+              customerEmail,
+              customerPhone,
+              points: 0
+            }
+          });
+        }
+
+        // Get loyalty program settings
+        const loyaltyProgram = await prisma.loyaltyProgram.findFirst({
+          where: { isActive: true }
+        });
+
+        if (loyaltyProgram) {
+          // Calculate points for this booking
+          const pointsEarned = loyaltyProgram.pointsPerBooking;
+          
+          // Add points to customer's account
+          await prisma.customerLoyalty.update({
+            where: { id: customerLoyalty.id },
+            data: {
+              points: {
+                increment: pointsEarned
+              },
+              lastActivity: new Date()
+            }
+          });
+
+          // Record points history
+          await prisma.pointsHistory.create({
+            data: {
+              customerLoyaltyId: customerLoyalty.id,
+              points: pointsEarned,
+              type: 'BOOKING',
+              referenceId: newBooking.id,
+              description: `Earned ${pointsEarned} points for booking #${newBooking.id}`
+            }
+          });
+
+          // Update booking with loyalty info
+          await prisma.booking.update({
+            where: { id: newBooking.id },
+            data: {
+              loyaltyPointsEarned: pointsEarned,
+              customerLoyaltyId: customerLoyalty.id
+            }
+          });
+        }
       }
+
+      return newBooking;
     });
+
+    // Prepare booking data for email
+    const bookingEmailData = {
+      customerName,
+      customerEmail,
+      service: serviceDoc.name,
+      appointmentDate,
+      appointmentTime,
+      notes: notes || '',
+      joinLoyalty: joinLoyalty === 'true' || joinLoyalty === true,
+      loyaltyPointsEarned: 0
+    };
+
+    // Add loyalty points if applicable
+    if (joinLoyalty === 'true' || joinLoyalty === true) {
+      const loyaltyProgram = await prisma.loyaltyProgram.findFirst({
+        where: { isActive: true }
+      });
+      
+      if (loyaltyProgram) {
+        bookingEmailData.loyaltyPointsEarned = loyaltyProgram.pointsPerBooking;
+      }
+    }
 
     // Send confirmation email
     try {
-      await sendBookingConfirmation({
-        customerName,
-        customerEmail,
-        serviceName: serviceDoc.name,
-        appointmentDate,
-        appointmentTime
-      });
+      await sendBookingConfirmation(bookingEmailData);
     } catch (emailError) {
-      console.error('Failed to send confirmation email:', emailError);
+      console.error('Error sending confirmation email:', emailError);
       // Don't fail the booking if email fails
     }
 

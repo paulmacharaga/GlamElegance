@@ -10,7 +10,8 @@
     "client": "cd client && npm start",
     "build": "node vercel-build.js",
     "install-all": "npm install && cd server && npm install && cd ../client && npm install",
-    "start": "cd server && npm start"
+    "start": "cd server && npm start",
+    "seed:loyalty": "cd server && node seed-loyalty.js"
   },
   "keywords": ["glam-elegance", "beauty-salon", "qr-code", "booking", "reviews"],
   "author": "Glam Elegance",

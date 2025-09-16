@@ -59,21 +59,24 @@ model Staff {
 }
 
 model Booking {
-  id          String   @id @default(cuid())
-  customerName String
-  customerEmail String
-  customerPhone String
-  serviceId   String
-  bookingDate DateTime
-  bookingTime String
-  status      String   @default("pending") // pending, confirmed, completed, cancelled
-  notes       String?
-  inspirationImages String[] // Array of image URLs
-  currentHairImages Json?    // JSON object with front, back, top image URLs
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  customerName        String
+  customerEmail       String
+  customerPhone       String
+  serviceId           String
+  bookingDate         DateTime
+  bookingTime         String
+  status              String   @default("pending") // pending, confirmed, completed, cancelled
+  notes               String?
+  inspirationImages   String[] // Array of image URLs
+  currentHairImages   Json?    // JSON object with front, back, top image URLs
+  loyaltyPointsEarned Int?     // Points earned for this booking
+  customerLoyaltyId   String?  // Reference to customer's loyalty account
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   service Service @relation(fields: [serviceId], references: [id])
+  customerLoyalty CustomerLoyalty? @relation(fields: [customerLoyaltyId], references: [id])
 
   @@map("bookings")
 }
@@ -100,9 +103,9 @@ model LoyaltyProgram {
   name             String
   description      String?
   pointsPerBooking Int      @default(10)
-  pointsPerDollar  Float    @default(1)
+  pointsPerDollar  Float    @default(1.0)
   rewardThreshold  Int      @default(100)
-  rewardAmount     Float    @default(10)
+  rewardAmount     Float    @default(10.0)
   isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -111,17 +114,19 @@ model LoyaltyProgram {
 }
 
 model CustomerLoyalty {
-  id                   String              @id @default(cuid())
-  customerEmail        String              @unique
-  customerName         String
-  customerPhone        String?
-  points               Int                 @default(0)
-  totalPointsEarned    Int                 @default(0)
-  totalPointsRedeemed  Int                 @default(0)
-  rewardsRedeemed      Int                 @default(0)
-  pointsHistory        PointsHistory[]
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
+  id                  String          @id @default(cuid())
+  customerName        String
+  customerEmail       String          @unique
+  customerPhone       String?
+  points              Int             @default(0)
+  totalPointsRedeemed Int             @default(0)
+  rewardsRedeemed     Int             @default(0)
+  lastActivity        DateTime?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  
+  bookings      Booking[]
+  pointsHistory PointsHistory[]
 
   @@map("customer_loyalty")
 }

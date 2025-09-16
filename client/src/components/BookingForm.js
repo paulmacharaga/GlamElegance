@@ -53,6 +53,7 @@ const BookingForm = () => {
     appointmentTime: '',
     notes: '',
     useReward: false,
+    joinLoyalty: false,
     inspirationImages: [],
     currentHairImages: {
       front: null,
@@ -225,6 +226,7 @@ const BookingForm = () => {
       formDataToSend.append('appointmentTime', formData.appointmentTime);
       formDataToSend.append('notes', formData.notes || '');
       formDataToSend.append('useReward', formData.useReward);
+      formDataToSend.append('joinLoyalty', formData.joinLoyalty);
       
       // Add service details
       if (selectedService) {
@@ -456,7 +458,7 @@ const BookingForm = () => {
                       <PhotoCamera sx={{ mr: 1 }} />
                       Hair Style Inspiration
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                    <Typography variant="body2" color="textSecondary" gutterBottom>
                       Upload photos of hair styles you'd like to achieve
                     </Typography>
                     
@@ -513,7 +515,7 @@ const BookingForm = () => {
                       <PhotoCamera sx={{ mr: 1 }} />
                       Current Hair Photos
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                    <Typography variant="body2" color="textSecondary" gutterBottom>
                       Upload photos of your current hair from different angles
                     </Typography>
                     
@@ -665,6 +667,39 @@ const BookingForm = () => {
                     </Grid>
                   )}
 
+                  {/* Loyalty Program Opt-in */}
+                  <Grid item xs={12}>
+                    <Paper elevation={0} sx={{ p: 2, backgroundColor: '#f9f9f9', borderRadius: 2, border: '1px solid #eee' }}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={formData.joinLoyalty}
+                            onChange={(e) => setFormData({...formData, joinLoyalty: e.target.checked})}
+                            color="primary"
+                          />
+                        }
+                        label={
+                          <Box>
+                            <Typography variant="subtitle1" gutterBottom>
+                              Join Our Loyalty Program
+                              <Chip 
+                                label="Earn Points" 
+                                size="small" 
+                                color="primary" 
+                                variant="outlined" 
+                                sx={{ ml: 1, fontSize: '0.7rem' }}
+                              />
+                            </Typography>
+                            <Typography variant="body2" color="textSecondary">
+                              Earn points for every booking and redeem them for exclusive discounts and rewards!
+                            </Typography>
+                          </Box>
+                        }
+                        sx={{ width: '100%', m: 0 }}
+                      />
+                    </Paper>
+                  </Grid>
+
                   {/* Error Message */}
                   {error && (
                     <Grid item xs={12}>
@@ -681,17 +716,11 @@ const BookingForm = () => {
                         type="submit"
                         variant="contained"
                         size="large"
-                        disabled={loading || loadingServices}
-                        sx={{
-                          px: 4,
-                          py: 1.5,
-                          borderRadius: 25,
-                          background: 'linear-gradient(135deg, #2D1B69 0%, #5E4BA4 100%)',
-                          '&:hover': {
-                            background: 'linear-gradient(135deg, #1A0F3D 0%, #2D1B69 100%)'
-                          }
-                        }}
+                        disabled={loading}
+                        startIcon={loading ? <CircularProgress size={20} /> : null}
+                        sx={{ mt: 2 }}
                       >
+                        {loading ? 'Processing...' : 'Book Appointment'}
                         {loading ? (
                           <>
                             <CircularProgress size={20} sx={{ mr: 1 }} />
