@@ -62,8 +62,24 @@ const AdminLogin = () => {
       console.log('📡 Response ok:', response.ok);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed');
+        let errorData;
+        try {
+          errorData = await response.json();
+          console.error('❌ Login error response:', {
+            status: response.status,
+            statusText: response.statusText,
+            errorData
+          });
+        } catch (parseError) {
+          const text = await response.text();
+          console.error('❌ Failed to parse error response:', {
+            status: response.status,
+            statusText: response.statusText,
+            responseText: text
+          });
+          throw new Error(`Login failed with status ${response.status}: ${response.statusText}`);
+        }
+        throw new Error(errorData.message || `Login failed with status ${response.status}`);
       }
 
       const data = await response.json();
