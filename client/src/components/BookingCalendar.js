@@ -56,11 +56,6 @@ const BookingCalendar = ({ onSelectTimeSlot, selectedService, selectedStaff }) =
 
   const weekDates = generateWeekDates(currentDate);
 
-  // Fetch available slots for the current week
-  useEffect(() => {
-    fetchAvailableSlots();
-  }, [currentDate, selectedService, selectedStaff, fetchAvailableSlots]);
-
   const fetchAvailableSlots = useCallback(async () => {
     if (!weekDates.length) return;
 
@@ -93,6 +88,11 @@ const BookingCalendar = ({ onSelectTimeSlot, selectedService, selectedStaff }) =
       setLoading(false);
     }
   }, [weekDates, selectedService, selectedStaff]);
+
+  // Fetch available slots for the current week
+  useEffect(() => {
+    fetchAvailableSlots();
+  }, [currentDate, selectedService, selectedStaff, fetchAvailableSlots]);
 
   const handleDateClick = (date) => {
     setSelectedDate(date);
