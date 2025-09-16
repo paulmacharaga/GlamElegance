@@ -51,8 +51,6 @@ model Staff {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  bookings Booking[]
-
   @@map("staff")
 }
 
@@ -62,7 +60,6 @@ model Booking {
   customerEmail String
   customerPhone String
   serviceId   String
-  staffId     String?
   bookingDate DateTime
   bookingTime String
   status      String   @default("pending") // pending, confirmed, completed, cancelled
@@ -73,7 +70,6 @@ model Booking {
   updatedAt   DateTime @updatedAt
 
   service Service @relation(fields: [serviceId], references: [id])
-  staff   Staff?  @relation(fields: [staffId], references: [id])
 
   @@map("bookings")
 }

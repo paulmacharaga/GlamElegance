@@ -63,7 +63,6 @@ router.post('/', upload.fields([
       customerEmail,
       customerPhone,
       service,
-      stylist,
       appointmentDate,
       appointmentTime,
       notes
@@ -90,16 +89,6 @@ router.post('/', upload.fields([
       return res.status(400).json({ message: 'Time slot already booked' });
     }
 
-    // Validate staff if provided
-    let staffDoc = null;
-    if (stylist) {
-      staffDoc = await prisma.staff.findUnique({
-        where: { id: stylist }
-      });
-      if (!staffDoc || !staffDoc.isActive) {
-        return res.status(400).json({ message: 'Staff member not found or inactive' });
-      }
-    }
 
     // Process uploaded images
     const inspirationImages = [];
@@ -129,7 +118,6 @@ router.post('/', upload.fields([
         customerEmail,
         customerPhone,
         serviceId: serviceDoc.id,
-        staffId: staffDoc ? staffDoc.id : null,
         bookingDate: new Date(appointmentDate),
         bookingTime: appointmentTime,
         notes,
@@ -138,8 +126,7 @@ router.post('/', upload.fields([
         status: 'pending'
       },
       include: {
-        service: true,
-        staff: true
+        service: true
       }
     });
 
@@ -150,8 +137,7 @@ router.post('/', upload.fields([
         customerEmail,
         serviceName: serviceDoc.name,
         appointmentDate,
-        appointmentTime,
-        staffName: staffDoc ? staffDoc.name : 'Any available stylist'
+        appointmentTime
       });
     } catch (emailError) {
       console.error('Failed to send confirmation email:', emailError);

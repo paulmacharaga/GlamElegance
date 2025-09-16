@@ -44,9 +44,7 @@ const BookingForm = () => {
   const [availableSlots, setAvailableSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [loadingServices, setLoadingServices] = useState(true);
-  const [loadingStaff, setLoadingStaff] = useState(true);
   const [services, setServices] = useState([]);
-  const [staff, setStaff] = useState([]);
   const [error, setError] = useState(null);
   const [viewMode, setViewMode] = useState('form'); // 'form' or 'calendar'
   
@@ -55,7 +53,6 @@ const BookingForm = () => {
     customerEmail: '',
     customerPhone: '',
     service: '',
-    stylist: '',
     appointmentDate: null,
     appointmentTime: '',
     notes: '',
@@ -70,10 +67,9 @@ const BookingForm = () => {
   
   const [loyaltyReward, setLoyaltyReward] = useState(null);
 
-  // Fetch services and staff when component mounts
+  // Fetch services when component mounts
   useEffect(() => {
     fetchServices();
-    fetchStaff();
   }, []);
 
   useEffect(() => {
@@ -119,23 +115,6 @@ const BookingForm = () => {
     }
   };
 
-  // Fetch staff from API
-  const fetchStaff = async () => {
-    setLoadingStaff(true);
-    setError(null);
-    try {
-      const response = await api.get('/api/staff');
-      // Only include active staff members
-      const activeStaff = response.data.filter(staffMember => staffMember.isActive);
-      setStaff(activeStaff);
-    } catch (error) {
-      console.error('Error fetching staff:', error);
-      setError('Failed to load staff. Please try again later.');
-      toast.error('Failed to load staff');
-    } finally {
-      setLoadingStaff(false);
-    }
-  };
 
   const fetchAvailableSlots = async (date) => {
     setLoadingSlots(true);
@@ -253,7 +232,6 @@ const BookingForm = () => {
       formDataToSend.append('customerEmail', formData.customerEmail);
       formDataToSend.append('customerPhone', formData.customerPhone);
       formDataToSend.append('service', formData.service);
-      formDataToSend.append('stylist', formData.stylist || '');
       formDataToSend.append('appointmentDate', dayjs(formData.appointmentDate).format('YYYY-MM-DD'));
       formDataToSend.append('appointmentTime', formData.appointmentTime);
       formDataToSend.append('notes', formData.notes || '');
@@ -426,32 +404,6 @@ const BookingForm = () => {
                     </FormControl>
                   </Grid>
 
-                  <Grid item xs={12} md={6}>
-                    <FormControl fullWidth>
-                      <InputLabel>Preferred Stylist (Optional)</InputLabel>
-                      {loadingStaff ? (
-                        <Skeleton variant="rectangular" height={56} />
-                      ) : (
-                        <Select
-                          value={formData.stylist}
-                          label="Preferred Stylist (Optional)"
-                          onChange={(e) => handleInputChange('stylist', e.target.value)}
-                          disabled={loadingStaff}
-                        >
-                          <MenuItem value="">Any Available Stylist</MenuItem>
-                          {staff.length > 0 ? (
-                            staff.map((staffMember) => (
-                              <MenuItem key={staffMember._id} value={staffMember._id}>
-                                {staffMember.name} - {staffMember.title}
-                              </MenuItem>
-                            ))
-                          ) : (
-                            <MenuItem disabled>No stylists available</MenuItem>
-                          )}
-                        </Select>
-                      )}
-                    </FormControl>
-                  </Grid>
 
                   {/* Date and Time Selection */}
                   <Grid item xs={12}>
@@ -537,7 +489,6 @@ const BookingForm = () => {
                         <BookingCalendar 
                           onSelectTimeSlot={handleTimeSlotSelect}
                           selectedService={formData.service}
-                          selectedStaff={formData.stylist}
                         />
                         
                         {formData.appointmentDate && formData.appointmentTime && (
@@ -782,7 +733,7 @@ const BookingForm = () => {
                         type="submit"
                         variant="contained"
                         size="large"
-                        disabled={loading || loadingServices || loadingStaff}
+                        disabled={loading || loadingServices}
                         sx={{
                           px: 4,
                           py: 1.5,
