@@ -15,15 +15,24 @@ import {
   CircularProgress,
   Alert,
   IconButton,
-  Divider
+  Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Menu,
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
 import {
   ChevronLeft,
   ChevronRight,
   CalendarToday,
   AccessTime,
-  Person,
-  Spa
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import toast from 'react-hot-toast';
@@ -36,6 +45,18 @@ const AdminBookingCalendar = () => {
   const [selectedStaff, setSelectedStaff] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [editDialog, setEditDialog] = useState({ open: false, booking: null });
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    customerName: '',
+    customerEmail: '',
+    customerPhone: '',
+    bookingDate: '',
+    bookingTime: '',
+    notes: '',
+    status: 'pending'
+  });
 
   // Get the start and end of the current week
   const startOfWeek = currentDate.startOf('week');
@@ -110,6 +131,71 @@ const AdminBookingCalendar = () => {
       console.error('Failed to update booking status:', error);
       toast.error('Failed to update booking status');
     }
+  };
+
+  const handleMenuOpen = (event, booking) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedBooking(booking);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setSelectedBooking(null);
+  };
+
+  const handleEditBooking = () => {
+    if (selectedBooking) {
+      setEditFormData({
+        customerName: selectedBooking.customerName,
+        customerEmail: selectedBooking.customerEmail,
+        customerPhone: selectedBooking.customerPhone,
+        bookingDate: dayjs(selectedBooking.bookingDate).format('YYYY-MM-DD'),
+        bookingTime: selectedBooking.bookingTime,
+        notes: selectedBooking.notes || '',
+        status: selectedBooking.status
+      });
+      setEditDialog({ open: true, booking: selectedBooking });
+    }
+    handleMenuClose();
+  };
+
+  const handleDeleteBooking = async () => {
+    if (selectedBooking && window.confirm('Are you sure you want to delete this booking?')) {
+      try {
+        await api.delete(`/api/bookings/${selectedBooking._id}`);
+        toast.success('Booking deleted successfully');
+        fetchBookings();
+      } catch (error) {
+        console.error('Failed to delete booking:', error);
+        toast.error('Failed to delete booking');
+      }
+    }
+    handleMenuClose();
+  };
+
+  const handleEditFormChange = (field, value) => {
+    setEditFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      const updateData = {
+        ...editFormData,
+        bookingDate: new Date(editFormData.bookingDate)
+      };
+      
+      await api.patch(`/api/bookings/${editDialog.booking._id}`, updateData);
+      toast.success('Booking updated successfully');
+      setEditDialog({ open: false, booking: null });
+      fetchBookings();
+    } catch (error) {
+      console.error('Failed to update booking:', error);
+      toast.error('Failed to update booking');
+    }
+  };
+
+  const handleCloseEditDialog = () => {
+    setEditDialog({ open: false, booking: null });
   };
 
   const getStatusColor = (status) => {
@@ -283,41 +369,66 @@ const AdminBookingCalendar = () => {
                             key={booking._id} 
                             sx={{ 
                               mb: 0.5, 
-                              bgcolor: getStatusColor(booking.status) + '.light',
-                              '&:last-child': { mb: 0 }
+                              minHeight: 60,
+                              bgcolor: getStatusColor(booking.status) === 'success' ? 'success.light' : 
+                                     getStatusColor(booking.status) === 'warning' ? 'warning.light' : 
+                                     getStatusColor(booking.status) === 'info' ? 'info.light' : 'error.light',
+                              '&:hover': { 
+                                transform: 'scale(1.02)',
+                                transition: 'transform 0.2s'
+                              }
                             }}
                           >
                             <CardContent sx={{ p: 1, '&:last-child': { pb: 1 } }}>
-                              <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block' }}>
-                                {booking.customerName}
-                              </Typography>
-                              <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Spa sx={{ fontSize: 12 }} />
-                                {booking.service?.name || booking.service || 'Service'}
-                              </Typography>
-                              {booking.stylist && (
-                                <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                  <Person sx={{ fontSize: 12 }} />
-                                  {booking.stylist}
-                                </Typography>
-                              )}
-                              <Box sx={{ mt: 0.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <Chip 
-                                  label={booking.status} 
-                                  color={getStatusColor(booking.status)}
-                                  size="small"
-                                  sx={{ height: 20, fontSize: '0.6rem' }}
-                                />
-                                {booking.status === 'pending' && (
-                                  <Button 
-                                    size="small" 
-                                    variant="outlined"
-                                    sx={{ fontSize: '0.6rem', py: 0, minWidth: 'auto' }}
-                                    onClick={() => updateBookingStatus(booking._id, 'confirmed')}
-                                  >
-                                    Confirm
-                                  </Button>
-                                )}
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block' }}>
+                                    {booking.customerName}
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ display: 'block', opacity: 0.8 }}>
+                                    {booking.service?.name || 'Service'}
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ display: 'block', opacity: 0.7 }}>
+                                    {booking.stylist || 'Staff'}
+                                  </Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                    <Chip 
+                                      label={booking.status} 
+                                      size="small" 
+                                      color={getStatusColor(booking.status)}
+                                      sx={{ fontSize: '0.6rem', height: 16 }}
+                                    />
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e) => handleMenuOpen(e, booking)}
+                                      sx={{ p: 0.25 }}
+                                    >
+                                      <MoreVertIcon fontSize="small" />
+                                    </IconButton>
+                                  </Box>
+                                  <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                    {['pending', 'confirmed', 'completed', 'cancelled'].map((status) => (
+                                      <Button
+                                        key={status}
+                                        size="small"
+                                        variant={booking.status === status ? 'contained' : 'outlined'}
+                                        color={getStatusColor(status)}
+                                        onClick={() => updateBookingStatus(booking._id, status)}
+                                        sx={{ 
+                                          minWidth: 'auto', 
+                                          fontSize: '0.6rem', 
+                                          px: 0.5, 
+                                          py: 0.25,
+                                          textTransform: 'capitalize'
+                                        }}
+                                      >
+                                        {status.charAt(0).toUpperCase()}
+                                      </Button>
+                                    ))}
+                                  </Box>
+                                </Box>
                               </Box>
                             </CardContent>
                           </Card>
@@ -331,6 +442,115 @@ const AdminBookingCalendar = () => {
           </Box>
         </Paper>
       )}
+
+      {/* Context Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={handleEditBooking}>
+          <ListItemIcon>
+            <EditIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Edit Booking</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={handleDeleteBooking}>
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Delete Booking</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      {/* Edit Booking Dialog */}
+      <Dialog open={editDialog.open} onClose={handleCloseEditDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Booking</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Customer Name"
+                value={editFormData.customerName}
+                onChange={(e) => handleEditFormChange('customerName', e.target.value)}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Customer Email"
+                type="email"
+                value={editFormData.customerEmail}
+                onChange={(e) => handleEditFormChange('customerEmail', e.target.value)}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Customer Phone"
+                value={editFormData.customerPhone}
+                onChange={(e) => handleEditFormChange('customerPhone', e.target.value)}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Booking Date"
+                type="date"
+                value={editFormData.bookingDate}
+                onChange={(e) => handleEditFormChange('bookingDate', e.target.value)}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <FormControl fullWidth>
+                <InputLabel>Booking Time</InputLabel>
+                <Select
+                  value={editFormData.bookingTime}
+                  label="Booking Time"
+                  onChange={(e) => handleEditFormChange('bookingTime', e.target.value)}
+                >
+                  {businessHours.map((time) => (
+                    <MenuItem key={time} value={time}>
+                      {time}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={editFormData.status}
+                  label="Status"
+                  onChange={(e) => handleEditFormChange('status', e.target.value)}
+                >
+                  <MenuItem value="pending">Pending</MenuItem>
+                  <MenuItem value="confirmed">Confirmed</MenuItem>
+                  <MenuItem value="completed">Completed</MenuItem>
+                  <MenuItem value="cancelled">Cancelled</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Notes"
+                multiline
+                rows={3}
+                value={editFormData.notes}
+                onChange={(e) => handleEditFormChange('notes', e.target.value)}
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseEditDialog}>Cancel</Button>
+          <Button onClick={handleSaveEdit} variant="contained">Save Changes</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
