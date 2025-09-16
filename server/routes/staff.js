@@ -1,14 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const Staff = require('../models/Staff');
+const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
 
 // Get all staff members
 router.get('/', async (req, res) => {
   try {
-    const staff = await Staff.find()
-      .populate('services')
-      .sort({ name: 1 });
+    const staff = await prisma.staff.findMany({
+      orderBy: {
+        name: 'asc'
+      },
+      where: {
+        isActive: true
+      }
+    });
     res.json(staff);
   } catch (error) {
     console.error('Error fetching staff:', error);
@@ -19,8 +24,9 @@ router.get('/', async (req, res) => {
 // Get a single staff member
 router.get('/:id', async (req, res) => {
   try {
-    const staffMember = await Staff.findById(req.params.id)
-      .populate('services');
+    const staffMember = await prisma.staff.findUnique({
+      where: { id: req.params.id }
+    });
     
     if (!staffMember) {
       return res.status(404).json({ message: 'Staff member not found' });
@@ -43,14 +49,8 @@ router.post('/', auth, async (req, res) => {
     
     const { 
       name, 
-      title, 
       email, 
-      phone, 
-      bio, 
-      photo, 
-      specialties, 
-      services,
-      workingHours 
+      phone
     } = req.body;
     
     // Validate required fields
@@ -59,20 +59,15 @@ router.post('/', auth, async (req, res) => {
     }
     
     // Create new staff member
-    const newStaff = new Staff({
-      name,
-      title,
-      email,
-      phone,
-      bio,
-      photo,
-      specialties,
-      services,
-      workingHours
+    const newStaff = await prisma.staff.create({
+      data: {
+        name,
+        email,
+        phone
+      }
     });
     
-    const savedStaff = await newStaff.save();
-    res.status(201).json(savedStaff);
+    res.status(201).json(newStaff);
   } catch (error) {
     console.error('Error creating staff member:', error);
     res.status(500).json({ message: 'Server error' });
@@ -89,39 +84,21 @@ router.put('/:id', auth, async (req, res) => {
     
     const { 
       name, 
-      title, 
       email, 
-      phone, 
-      bio, 
-      photo, 
-      specialties, 
-      services,
-      workingHours,
+      phone,
       isActive 
     } = req.body;
     
     // Find staff member and update
-    const updatedStaff = await Staff.findByIdAndUpdate(
-      req.params.id,
-      { 
+    const updatedStaff = await prisma.staff.update({
+      where: { id: req.params.id },
+      data: {
         name, 
-        title, 
         email, 
-        phone, 
-        bio, 
-        photo, 
-        specialties, 
-        services,
-        workingHours,
-        isActive,
-        updatedAt: Date.now()
-      },
-      { new: true, runValidators: true }
-    );
-    
-    if (!updatedStaff) {
-      return res.status(404).json({ message: 'Staff member not found' });
-    }
+        phone,
+        isActive
+      }
+    });
     
     res.json(updatedStaff);
   } catch (error) {
@@ -138,11 +115,9 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(403).json({ message: 'Access denied. Admin only.' });
     }
     
-    const staffMember = await Staff.findByIdAndDelete(req.params.id);
-    
-    if (!staffMember) {
-      return res.status(404).json({ message: 'Staff member not found' });
-    }
+    const staffMember = await prisma.staff.delete({
+      where: { id: req.params.id }
+    });
     
     res.json({ message: 'Staff member deleted successfully' });
   } catch (error) {

@@ -1,12 +1,19 @@
 const express = require('express');
 const router = express.Router();
-const Service = require('../models/Service');
+const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
 
 // Get all services
 router.get('/', async (req, res) => {
   try {
-    const services = await Service.find().sort({ category: 1, name: 1 });
+    const services = await prisma.service.findMany({
+      orderBy: [
+        { name: 'asc' }
+      ],
+      where: {
+        isActive: true
+      }
+    });
     res.json(services);
   } catch (error) {
     console.error('Error fetching services:', error);
@@ -17,7 +24,9 @@ router.get('/', async (req, res) => {
 // Get a single service
 router.get('/:id', async (req, res) => {
   try {
-    const service = await Service.findById(req.params.id);
+    const service = await prisma.service.findUnique({
+      where: { id: req.params.id }
+    });
     
     if (!service) {
       return res.status(404).json({ message: 'Service not found' });
@@ -46,16 +55,16 @@ router.post('/', auth, async (req, res) => {
     }
     
     // Create new service
-    const newService = new Service({
-      name,
-      description,
-      duration,
-      price,
-      category: category || 'General'
+    const newService = await prisma.service.create({
+      data: {
+        name,
+        description,
+        duration,
+        price
+      }
     });
     
-    const savedService = await newService.save();
-    res.status(201).json(savedService);
+    res.status(201).json(newService);
   } catch (error) {
     console.error('Error creating service:', error);
     res.status(500).json({ message: 'Server error' });
@@ -73,23 +82,16 @@ router.put('/:id', auth, async (req, res) => {
     const { name, description, duration, price, category, isActive } = req.body;
     
     // Find service and update
-    const updatedService = await Service.findByIdAndUpdate(
-      req.params.id,
-      { 
+    const updatedService = await prisma.service.update({
+      where: { id: req.params.id },
+      data: {
         name, 
         description, 
         duration, 
-        price, 
-        category,
-        isActive,
-        updatedAt: Date.now()
-      },
-      { new: true, runValidators: true }
-    );
-    
-    if (!updatedService) {
-      return res.status(404).json({ message: 'Service not found' });
-    }
+        price,
+        isActive
+      }
+    });
     
     res.json(updatedService);
   } catch (error) {
@@ -106,11 +108,9 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(403).json({ message: 'Access denied. Admin only.' });
     }
     
-    const service = await Service.findByIdAndDelete(req.params.id);
-    
-    if (!service) {
-      return res.status(404).json({ message: 'Service not found' });
-    }
+    const service = await prisma.service.delete({
+      where: { id: req.params.id }
+    });
     
     res.json({ message: 'Service deleted successfully' });
   } catch (error) {

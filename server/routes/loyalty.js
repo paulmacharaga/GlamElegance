@@ -1,8 +1,6 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const LoyaltyProgram = require('../models/LoyaltyProgram');
-const CustomerLoyalty = require('../models/CustomerLoyalty');
-const Booking = require('../models/Booking');
+const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
 
 const router = express.Router();
@@ -10,7 +8,9 @@ const router = express.Router();
 // Get loyalty program settings (public)
 router.get('/program', async (req, res) => {
   try {
-    const program = await LoyaltyProgram.findOne({ isActive: true });
+    const program = await prisma.loyaltyProgram.findFirst({ 
+      where: { isActive: true }
+    });
     
     if (!program) {
       return res.status(404).json({ message: 'No active loyalty program found' });
@@ -60,35 +60,35 @@ router.post('/program', auth, [
     } = req.body;
     
     // Find existing program or create new one
-    let program = await LoyaltyProgram.findOne({});
+    let program = await prisma.loyaltyProgram.findFirst({});
     
     if (program) {
       // Update existing program
-      program.name = name;
-      program.description = description;
-      program.pointsPerBooking = pointsPerBooking;
-      program.pointsPerDollar = pointsPerDollar;
-      program.rewardThreshold = rewardThreshold;
-      program.rewardAmount = rewardAmount;
-      
-      if (isActive !== undefined) {
-        program.isActive = isActive;
-      }
-      
-      await program.save();
+      program = await prisma.loyaltyProgram.update({
+        where: { id: program.id },
+        data: {
+          name,
+          description,
+          pointsPerBooking,
+          pointsPerDollar,
+          rewardThreshold,
+          rewardAmount,
+          isActive: isActive !== undefined ? isActive : program.isActive
+        }
+      });
     } else {
       // Create new program
-      program = new LoyaltyProgram({
-        name,
-        description,
-        pointsPerBooking,
-        pointsPerDollar,
-        rewardThreshold,
-        rewardAmount,
-        isActive: isActive !== undefined ? isActive : true
+      program = await prisma.loyaltyProgram.create({
+        data: {
+          name,
+          description,
+          pointsPerBooking,
+          pointsPerDollar,
+          rewardThreshold,
+          rewardAmount,
+          isActive: isActive !== undefined ? isActive : true
+        }
       });
-      
-      await program.save();
     }
     
     res.json({
@@ -106,8 +106,8 @@ router.get('/customer/:email', async (req, res) => {
   try {
     const { email } = req.params;
     
-    const customerLoyalty = await CustomerLoyalty.findOne({ 
-      customerEmail: email.toLowerCase() 
+    const customerLoyalty = await prisma.customerLoyalty.findUnique({ 
+      where: { customerEmail: email.toLowerCase() }
     });
     
     if (!customerLoyalty) {
@@ -115,7 +115,9 @@ router.get('/customer/:email', async (req, res) => {
     }
     
     // Get active loyalty program for threshold info
-    const program = await LoyaltyProgram.findOne({ isActive: true });
+    const program = await prisma.loyaltyProgram.findFirst({ 
+      where: { isActive: true }
+    });
     
     res.json({
       customerName: customerLoyalty.customerName,
@@ -136,8 +138,13 @@ router.get('/customer/:email/history', auth, async (req, res) => {
   try {
     const { email } = req.params;
     
-    const customerLoyalty = await CustomerLoyalty.findOne({ 
-      customerEmail: email.toLowerCase() 
+    const customerLoyalty = await prisma.customerLoyalty.findUnique({ 
+      where: { customerEmail: email.toLowerCase() },
+      include: {
+        pointsHistory: {
+          orderBy: { createdAt: 'desc' }
+        }
+      }
     });
     
     if (!customerLoyalty) {
@@ -147,7 +154,7 @@ router.get('/customer/:email/history', auth, async (req, res) => {
     res.json({
       customerName: customerLoyalty.customerName,
       points: customerLoyalty.points,
-      history: customerLoyalty.pointsHistory.sort((a, b) => b.createdAt - a.createdAt)
+      history: customerLoyalty.pointsHistory
     });
   } catch (error) {
     console.error('Get customer loyalty history error:', error);
@@ -169,20 +176,35 @@ router.post('/customer/:email/add-points', auth, [
     const { email } = req.params;
     const { points, description } = req.body;
     
-    let customerLoyalty = await CustomerLoyalty.findOne({ 
-      customerEmail: email.toLowerCase() 
+    let customerLoyalty = await prisma.customerLoyalty.findUnique({ 
+      where: { customerEmail: email.toLowerCase() }
     });
     
     if (!customerLoyalty) {
       return res.status(404).json({ message: 'Customer not found in loyalty program' });
     }
     
-    await customerLoyalty.addPoints(
-      parseInt(points, 10),
-      'manual',
-      null,
-      description
-    );
+    const pointsToAdd = parseInt(points, 10);
+    
+    // Update customer loyalty and add points history
+    customerLoyalty = await prisma.customerLoyalty.update({
+      where: { id: customerLoyalty.id },
+      data: {
+        points: { increment: pointsToAdd },
+        totalPointsEarned: { increment: pointsToAdd }
+      }
+    });
+    
+    // Add to points history
+    await prisma.pointsHistory.create({
+      data: {
+        customerLoyaltyId: customerLoyalty.id,
+        points: pointsToAdd,
+        type: 'earned',
+        source: 'manual',
+        description
+      }
+    });
     
     res.json({
       message: 'Points added successfully',
@@ -208,14 +230,16 @@ router.post('/customer/:email/redeem', [
     const { bookingId } = req.body;
     
     // Get active loyalty program
-    const program = await LoyaltyProgram.findOne({ isActive: true });
+    const program = await prisma.loyaltyProgram.findFirst({ 
+      where: { isActive: true }
+    });
     
     if (!program) {
       return res.status(404).json({ message: 'No active loyalty program found' });
     }
     
-    let customerLoyalty = await CustomerLoyalty.findOne({ 
-      customerEmail: email.toLowerCase() 
+    let customerLoyalty = await prisma.customerLoyalty.findUnique({ 
+      where: { customerEmail: email.toLowerCase() }
     });
     
     if (!customerLoyalty) {
@@ -234,7 +258,9 @@ router.post('/customer/:email/redeem', [
     // If booking ID is provided, verify it exists and belongs to this customer
     let booking = null;
     if (bookingId) {
-      booking = await Booking.findById(bookingId);
+      booking = await prisma.booking.findUnique({
+        where: { id: bookingId }
+      });
       
       if (!booking) {
         return res.status(404).json({ message: 'Booking not found' });
@@ -246,12 +272,26 @@ router.post('/customer/:email/redeem', [
     }
     
     // Redeem points
-    await customerLoyalty.redeemPoints(
-      program.rewardThreshold,
-      'reward',
-      bookingId,
-      `Redeemed ${program.rewardThreshold} points for $${program.rewardAmount} discount`
-    );
+    customerLoyalty = await prisma.customerLoyalty.update({
+      where: { id: customerLoyalty.id },
+      data: {
+        points: { decrement: program.rewardThreshold },
+        totalPointsRedeemed: { increment: program.rewardThreshold },
+        rewardsRedeemed: { increment: 1 }
+      }
+    });
+    
+    // Add to points history
+    await prisma.pointsHistory.create({
+      data: {
+        customerLoyaltyId: customerLoyalty.id,
+        points: program.rewardThreshold,
+        type: 'redeemed',
+        source: 'reward',
+        bookingId,
+        description: `Redeemed ${program.rewardThreshold} points for $${program.rewardAmount} discount`
+      }
+    });
     
     res.json({
       message: 'Points redeemed successfully',
@@ -274,20 +314,21 @@ router.get('/customers', auth, async (req, res) => {
   try {
     const { page = 1, limit = 10, sort = 'points', order = 'desc' } = req.query;
     
-    const sortOptions = {};
-    sortOptions[sort] = order === 'desc' ? -1 : 1;
+    const orderBy = {};
+    orderBy[sort] = order === 'desc' ? 'desc' : 'asc';
     
-    const customers = await CustomerLoyalty.find({})
-      .sort(sortOptions)
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
+    const customers = await prisma.customerLoyalty.findMany({
+      orderBy,
+      take: parseInt(limit),
+      skip: (parseInt(page) - 1) * parseInt(limit)
+    });
     
-    const total = await CustomerLoyalty.countDocuments();
+    const total = await prisma.customerLoyalty.count();
     
     res.json({
       customers,
       totalPages: Math.ceil(total / limit),
-      currentPage: page,
+      currentPage: parseInt(page),
       total
     });
   } catch (error) {

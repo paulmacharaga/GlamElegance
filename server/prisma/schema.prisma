@@ -92,3 +92,49 @@ model Feedback {
 
   @@map("feedback")
 }
+
+model LoyaltyProgram {
+  id               String   @id @default(cuid())
+  name             String
+  description      String?
+  pointsPerBooking Int      @default(10)
+  pointsPerDollar  Float    @default(1)
+  rewardThreshold  Int      @default(100)
+  rewardAmount     Float    @default(10)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("loyalty_programs")
+}
+
+model CustomerLoyalty {
+  id                   String              @id @default(cuid())
+  customerEmail        String              @unique
+  customerName         String
+  customerPhone        String?
+  points               Int                 @default(0)
+  totalPointsEarned    Int                 @default(0)
+  totalPointsRedeemed  Int                 @default(0)
+  rewardsRedeemed      Int                 @default(0)
+  pointsHistory        PointsHistory[]
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  @@map("customer_loyalty")
+}
+
+model PointsHistory {
+  id               String          @id @default(cuid())
+  customerLoyaltyId String
+  points           Int
+  type             String          // 'earned' or 'redeemed'
+  source           String          // 'booking', 'purchase', 'reward', 'manual', 'other'
+  bookingId        String?
+  description      String?
+  createdAt        DateTime        @default(now())
+
+  customerLoyalty  CustomerLoyalty @relation(fields: [customerLoyaltyId], references: [id], onDelete: Cascade)
+
+  @@map("points_history")
+}
