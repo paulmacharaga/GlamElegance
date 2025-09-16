@@ -25,7 +25,7 @@ router.post('/login', [
 
     // Find staff member by email
     console.log('🔍 Looking up staff member by email:', email);
-    const staff = await prisma.staff.findUnique({
+    const staff = await prisma.staff.findFirst({
       where: { email }
     });
     console.log('📝 Found staff member:', staff ? 'Yes' : 'No');
