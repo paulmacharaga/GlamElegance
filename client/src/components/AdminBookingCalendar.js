@@ -26,8 +26,8 @@ import {
   Spa
 } from '@mui/icons-material';
 import dayjs from 'dayjs';
-import axios from 'axios';
 import toast from 'react-hot-toast';
+import api from '../utils/api';
 
 const AdminBookingCalendar = () => {
   const [currentDate, setCurrentDate] = useState(dayjs());
@@ -50,7 +50,7 @@ const AdminBookingCalendar = () => {
 
   const fetchStaff = async () => {
     try {
-      const response = await axios.get('/api/staff');
+      const response = await api.get('/api/staff');
       setStaff(response.data);
     } catch (error) {
       console.error('Error fetching staff:', error);
@@ -69,7 +69,7 @@ const AdminBookingCalendar = () => {
         url += `&stylist=${selectedStaff}`;
       }
 
-      const response = await axios.get(url);
+      const response = await api.get(url);
       setBookings(response.data.bookings);
       setError(null);
     } catch (error) {
@@ -103,7 +103,7 @@ const AdminBookingCalendar = () => {
 
   const updateBookingStatus = async (bookingId, status) => {
     try {
-      await axios.patch(`/api/bookings/${bookingId}/status`, { status });
+      await api.patch(`/api/bookings/${bookingId}/status`, { status });
       toast.success('Booking status updated');
       fetchBookings();
     } catch (error) {

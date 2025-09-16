@@ -325,10 +325,23 @@ router.patch('/:id/status', auth, [
 router.get('/availability/:date', async (req, res) => {
   try {
     const date = new Date(req.params.date);
-    const bookedSlots = await Booking.find({
-      appointmentDate: date,
-      status: { $in: ['pending', 'confirmed'] }
-    }).select('appointmentTime');
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const bookedSlots = await prisma.booking.findMany({
+      where: {
+        bookingDate: {
+          gte: startOfDay,
+          lte: endOfDay
+        },
+        status: { in: ['pending', 'confirmed'] }
+      },
+      select: {
+        bookingTime: true
+      }
+    });
 
     const allSlots = [
       '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
@@ -336,7 +349,7 @@ router.get('/availability/:date', async (req, res) => {
       '15:00', '15:30', '16:00', '16:30', '17:00', '17:30'
     ];
 
-    const bookedTimes = bookedSlots.map(slot => slot.appointmentTime);
+    const bookedTimes = bookedSlots.map(slot => slot.bookingTime);
     const availableSlots = allSlots.filter(slot => !bookedTimes.includes(slot));
 
     res.json({ availableSlots });
@@ -370,17 +383,23 @@ router.get('/availability', async (req, res) => {
     }
 
     // Get all bookings in the date range
-    const query = {
-      appointmentDate: { $gte: start, $lte: end },
-      status: { $in: ['pending', 'confirmed'] }
+    const where = {
+      bookingDate: { gte: start, lte: end },
+      status: { in: ['pending', 'confirmed'] }
     };
     
     // Filter by staff if provided
     if (staffId) {
-      query.stylist = staffId;
+      where.staffId = staffId;
     }
     
-    const bookings = await Booking.find(query).select('appointmentDate appointmentTime');
+    const bookings = await prisma.booking.findMany({
+      where,
+      select: {
+        bookingDate: true,
+        bookingTime: true
+      }
+    });
     
     // Generate all dates in the range
     const dates = [];
@@ -412,10 +431,10 @@ router.get('/availability', async (req, res) => {
       
       // Find bookings for this specific date
       const dayBookings = bookings.filter(booking => 
-        booking.appointmentDate.toISOString().split('T')[0] === dateString
+        booking.bookingDate.toISOString().split('T')[0] === dateString
       );
       
-      const bookedTimes = dayBookings.map(booking => booking.appointmentTime);
+      const bookedTimes = dayBookings.map(booking => booking.bookingTime);
       availableSlots[dateString] = allSlots.filter(slot => !bookedTimes.includes(slot));
     }
     
