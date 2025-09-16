@@ -22,7 +22,7 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',  // Changed from username to email
+    identifier: '',
     password: ''
   });
 
@@ -36,7 +36,7 @@ const AdminLogin = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.email || !formData.password) {
+    if (!formData.identifier || !formData.password) {
       toast.error('Please fill in all fields');
       return;
     }
@@ -44,7 +44,7 @@ const AdminLogin = () => {
     setLoading(true);
     try {
       console.log('🚀 Starting staff login attempt...');
-      console.log('Form data:', { email: formData.email, password: '***' });
+      console.log('Form data:', { identifier: formData.identifier, password: '***' });
 
       // Use the staff authentication endpoint
       const response = await fetch('/api/staff-auth/login', {
@@ -53,7 +53,7 @@ const AdminLogin = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: formData.email,  // Changed from formData.username to formData.email
+          identifier: formData.identifier,
           password: formData.password
         }),
       });
@@ -152,10 +152,10 @@ const AdminLogin = () => {
               <Box mb={3}>
                 <TextField
                   fullWidth
-                  label="Email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  label="Email or Username"
+                  type="text"
+                  value={formData.identifier}
+                  onChange={(e) => handleInputChange('identifier', e.target.value)}
                   required
                 />
               </Box>

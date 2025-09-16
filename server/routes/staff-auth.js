@@ -10,10 +10,10 @@ const router = express.Router();
 
 // Staff login
 router.post('/login', [
-  body('email').isEmail().withMessage('Valid email is required'),
+  body('identifier').notEmpty().withMessage('Email or username is required'),
   body('password').notEmpty().withMessage('Password is required')
 ], async (req, res) => {
-  console.log('🔑 Staff login attempt:', { email: req.body.email });
+  console.log('🔑 Staff login attempt');
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -21,12 +21,18 @@ router.post('/login', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password } = req.body;
+    const { identifier, password } = req.body;
+    const isEmail = identifier.includes('@');
 
-    // Find staff member by email
-    console.log('🔍 Looking up staff member by email:', email);
+    // Find staff member by email or name
+    console.log(`🔍 Looking up staff member by ${isEmail ? 'email' : 'name'}:`, identifier);
     const staff = await prisma.staff.findFirst({
-      where: { email }
+      where: {
+        OR: [
+          { email: isEmail ? identifier : undefined },
+          { name: !isEmail ? identifier : undefined }
+        ].filter(Boolean)
+      }
     });
     console.log('📝 Found staff member:', staff ? 'Yes' : 'No');
 
