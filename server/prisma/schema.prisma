@@ -67,6 +67,8 @@ model Booking {
   bookingTime String
   status      String   @default("pending") // pending, confirmed, completed, cancelled
   notes       String?
+  inspirationImages String[] // Array of image URLs
+  currentHairImages Json?    // JSON object with front, back, top image URLs
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

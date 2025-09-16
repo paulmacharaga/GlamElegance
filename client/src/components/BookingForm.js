@@ -22,9 +22,13 @@ import {
   Paper,
   Divider,
   Switch,
-  FormControlLabel
+  FormControlLabel,
+  ImageList,
+  ImageListItem,
+  ImageListItemBar,
+  Chip
 } from '@mui/material';
-import { ArrowBack, CalendarToday, AccessTime, Person, ViewDay, CalendarMonth, Stars, CardGiftcard } from '@mui/icons-material';
+import { ArrowBack, CalendarToday, AccessTime, Person, ViewDay, CalendarMonth, Stars, CardGiftcard, PhotoCamera, Delete, CloudUpload } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -55,7 +59,13 @@ const BookingForm = () => {
     appointmentDate: null,
     appointmentTime: '',
     notes: '',
-    useReward: false
+    useReward: false,
+    inspirationImages: [],
+    currentHairImages: {
+      front: null,
+      back: null,
+      top: null
+    }
   });
   
   const [loyaltyReward, setLoyaltyReward] = useState(null);
@@ -71,6 +81,25 @@ const BookingForm = () => {
       fetchAvailableSlots(formData.appointmentDate);
     }
   }, [formData.appointmentDate]);
+
+  // Cleanup object URLs on component unmount
+  useEffect(() => {
+    return () => {
+      // Clean up inspiration images
+      formData.inspirationImages.forEach(image => {
+        if (image.preview) {
+          URL.revokeObjectURL(image.preview);
+        }
+      });
+      
+      // Clean up current hair images
+      Object.values(formData.currentHairImages).forEach(image => {
+        if (image && image.preview) {
+          URL.revokeObjectURL(image.preview);
+        }
+      });
+    };
+  }, [formData.inspirationImages, formData.currentHairImages]);
 
   // Fetch services from API
   const fetchServices = async () => {
@@ -128,6 +157,71 @@ const BookingForm = () => {
       [field]: value
     }));
   };
+
+  // Handle inspiration image uploads
+  const handleInspirationImageUpload = (files) => {
+    if (!files || files.length === 0) return;
+    
+    const newImages = Array.from(files).map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+    
+    setFormData(prev => ({
+      ...prev,
+      inspirationImages: [...prev.inspirationImages, ...newImages]
+    }));
+  };
+
+  // Remove inspiration image
+  const removeInspirationImage = (index) => {
+    setFormData(prev => {
+      const newImages = [...prev.inspirationImages];
+      // Clean up the object URL to prevent memory leaks
+      URL.revokeObjectURL(newImages[index].preview);
+      newImages.splice(index, 1);
+      return {
+        ...prev,
+        inspirationImages: newImages
+      };
+    });
+  };
+
+  // Handle current hair image upload
+  const handleCurrentHairImageUpload = (angle, file) => {
+    if (!file) return;
+    
+    const imageData = {
+      file,
+      preview: URL.createObjectURL(file)
+    };
+    
+    setFormData(prev => ({
+      ...prev,
+      currentHairImages: {
+        ...prev.currentHairImages,
+        [angle]: imageData
+      }
+    }));
+  };
+
+  // Remove current hair image
+  const removeCurrentHairImage = (angle) => {
+    setFormData(prev => {
+      const currentImage = prev.currentHairImages[angle];
+      if (currentImage) {
+        // Clean up the object URL to prevent memory leaks
+        URL.revokeObjectURL(currentImage.preview);
+      }
+      return {
+        ...prev,
+        currentHairImages: {
+          ...prev.currentHairImages,
+          [angle]: null
+        }
+      };
+    });
+  };
   
   const handleTimeSlotSelect = (date, time) => {
     setFormData(prev => ({
@@ -151,20 +245,47 @@ const BookingForm = () => {
       // Get the selected service details for the booking
       const selectedService = services.find(s => s._id === formData.service);
       
-      const bookingData = {
-        ...formData,
-        appointmentDate: dayjs(formData.appointmentDate).format('YYYY-MM-DD'),
-        // Include service details for the booking
-        serviceDetails: selectedService ? {
+      // Create FormData for file uploads
+      const formDataToSend = new FormData();
+      
+      // Add basic booking data
+      formDataToSend.append('customerName', formData.customerName);
+      formDataToSend.append('customerEmail', formData.customerEmail);
+      formDataToSend.append('customerPhone', formData.customerPhone);
+      formDataToSend.append('service', formData.service);
+      formDataToSend.append('stylist', formData.stylist || '');
+      formDataToSend.append('appointmentDate', dayjs(formData.appointmentDate).format('YYYY-MM-DD'));
+      formDataToSend.append('appointmentTime', formData.appointmentTime);
+      formDataToSend.append('notes', formData.notes || '');
+      formDataToSend.append('useReward', formData.useReward);
+      
+      // Add service details
+      if (selectedService) {
+        formDataToSend.append('serviceDetails', JSON.stringify({
           id: selectedService._id,
           name: selectedService.name,
-          duration: selectedService.duration,
-          price: selectedService.price
-        } : null
-      };
+          duration: selectedService.duration
+        }));
+      }
+      
+      // Add inspiration images
+      formData.inspirationImages.forEach((image, index) => {
+        formDataToSend.append(`inspirationImages`, image.file);
+      });
+      
+      // Add current hair images
+      Object.entries(formData.currentHairImages).forEach(([angle, imageData]) => {
+        if (imageData && imageData.file) {
+          formDataToSend.append(`currentHair_${angle}`, imageData.file);
+        }
+      });
 
-      // Create the booking
-      const bookingResponse = await api.post('/api/bookings', bookingData);
+      // Create the booking with images
+      const bookingResponse = await api.post('/api/bookings', formDataToSend, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       
       // If using loyalty reward, redeem points
       if (formData.useReward && loyaltyReward) {
@@ -292,7 +413,7 @@ const BookingForm = () => {
                                 <Box>
                                   <Typography variant="body1">{service.name}</Typography>
                                   <Typography variant="caption" color="text.secondary">
-                                    {service.duration} min • ${service.price}
+                                    {service.duration} min
                                   </Typography>
                                 </Box>
                               </MenuItem>
@@ -430,6 +551,149 @@ const BookingForm = () => {
                     </Grid>
                   )}
 
+                  {/* Hair Style Inspiration Images */}
+                  <Grid item xs={12}>
+                    <Typography variant="h6" gutterBottom sx={{ mt: 2, display: 'flex', alignItems: 'center' }}>
+                      <PhotoCamera sx={{ mr: 1 }} />
+                      Hair Style Inspiration
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Upload photos of hair styles you'd like to achieve
+                    </Typography>
+                    
+                    <Box sx={{ mb: 2 }}>
+                      <input
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        id="inspiration-upload"
+                        multiple
+                        type="file"
+                        onChange={(e) => handleInspirationImageUpload(e.target.files)}
+                      />
+                      <label htmlFor="inspiration-upload">
+                        <Button
+                          variant="outlined"
+                          component="span"
+                          startIcon={<CloudUpload />}
+                          sx={{ mr: 1 }}
+                        >
+                          Add Inspiration Photos
+                        </Button>
+                      </label>
+                    </Box>
+                    
+                    {formData.inspirationImages.length > 0 && (
+                      <ImageList sx={{ width: '100%', height: 200 }} cols={3} rowHeight={164}>
+                        {formData.inspirationImages.map((image, index) => (
+                          <ImageListItem key={index}>
+                            <img
+                              src={image.preview}
+                              alt={`Inspiration ${index + 1}`}
+                              loading="lazy"
+                              style={{ objectFit: 'cover' }}
+                            />
+                            <ImageListItemBar
+                              actionIcon={
+                                <IconButton
+                                  sx={{ color: 'rgba(255, 255, 255, 0.54)' }}
+                                  onClick={() => removeInspirationImage(index)}
+                                >
+                                  <Delete />
+                                </IconButton>
+                              }
+                            />
+                          </ImageListItem>
+                        ))}
+                      </ImageList>
+                    )}
+                  </Grid>
+
+                  {/* Current Hair Photos */}
+                  <Grid item xs={12}>
+                    <Typography variant="h6" gutterBottom sx={{ mt: 2, display: 'flex', alignItems: 'center' }}>
+                      <PhotoCamera sx={{ mr: 1 }} />
+                      Current Hair Photos
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Upload photos of your current hair from different angles
+                    </Typography>
+                    
+                    <Grid container spacing={2}>
+                      {['front', 'back', 'top'].map((angle) => (
+                        <Grid item xs={12} md={4} key={angle}>
+                          <Paper 
+                            elevation={1} 
+                            sx={{ 
+                              p: 2, 
+                              textAlign: 'center',
+                              border: formData.currentHairImages[angle] ? '2px solid #4caf50' : '2px dashed #ccc',
+                              minHeight: 200,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <Chip 
+                              label={angle.charAt(0).toUpperCase() + angle.slice(1)} 
+                              color="primary" 
+                              sx={{ mb: 2 }}
+                            />
+                            
+                            {formData.currentHairImages[angle] ? (
+                              <Box sx={{ position: 'relative', width: '100%' }}>
+                                <img
+                                  src={formData.currentHairImages[angle].preview}
+                                  alt={`Current hair ${angle}`}
+                                  style={{ 
+                                    width: '100%', 
+                                    height: 120, 
+                                    objectFit: 'cover',
+                                    borderRadius: 8
+                                  }}
+                                />
+                                <IconButton
+                                  size="small"
+                                  sx={{ 
+                                    position: 'absolute', 
+                                    top: -8, 
+                                    right: -8, 
+                                    bgcolor: 'error.main',
+                                    color: 'white',
+                                    '&:hover': { bgcolor: 'error.dark' }
+                                  }}
+                                  onClick={() => removeCurrentHairImage(angle)}
+                                >
+                                  <Delete fontSize="small" />
+                                </IconButton>
+                              </Box>
+                            ) : (
+                              <>
+                                <input
+                                  accept="image/*"
+                                  style={{ display: 'none' }}
+                                  id={`current-hair-${angle}`}
+                                  type="file"
+                                  onChange={(e) => handleCurrentHairImageUpload(angle, e.target.files[0])}
+                                />
+                                <label htmlFor={`current-hair-${angle}`}>
+                                  <Button
+                                    variant="outlined"
+                                    component="span"
+                                    startIcon={<PhotoCamera />}
+                                    size="small"
+                                  >
+                                    Upload {angle}
+                                  </Button>
+                                </label>
+                              </>
+                            )}
+                          </Paper>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Grid>
+
                   {/* Additional Notes */}
                   <Grid item xs={12}>
                     <TextField
@@ -451,14 +715,12 @@ const BookingForm = () => {
                           <strong>Selected Service:</strong> {services.find(s => s._id === formData.service)?.name}
                           <br />
                           <strong>Duration:</strong> {services.find(s => s._id === formData.service)?.duration} minutes
-                          <br />
-                          <strong>Price:</strong> ${services.find(s => s._id === formData.service)?.price}
                           {loyaltyReward && formData.useReward && (
                             <>
                               <br />
                               <Box sx={{ display: 'flex', alignItems: 'center', color: 'success.main', mt: 1 }}>
                                 <CardGiftcard sx={{ mr: 0.5 }} />
-                                <strong>Loyalty Discount:</strong> -${loyaltyReward}
+                                <strong>Loyalty Discount Applied:</strong> ${loyaltyReward}
                               </Box>
                             </>
                           )}

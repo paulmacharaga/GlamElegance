@@ -81,6 +81,9 @@ app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Serve uploaded files
+app.use('/uploads', express.static('uploads'));
+
 // Session middleware for passport
 app.use(session({
   secret: process.env.JWT_SECRET,

@@ -1,13 +1,50 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const prisma = require('../lib/prisma');
 const auth = require('../middleware/auth');
 const { sendBookingConfirmation } = require('../utils/email');
 
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = 'uploads/bookings';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  }
+});
+
 const router = express.Router();
 
-// Create new booking
-router.post('/', [
+// Create new booking with image uploads
+router.post('/', upload.fields([
+  { name: 'inspirationImages', maxCount: 10 },
+  { name: 'currentHair_front', maxCount: 1 },
+  { name: 'currentHair_back', maxCount: 1 },
+  { name: 'currentHair_top', maxCount: 1 }
+]), [
   body('customerName').notEmpty().withMessage('Customer name is required'),
   body('customerEmail').isEmail().withMessage('Valid email is required'),
   body('customerPhone').notEmpty().withMessage('Phone number is required'),
@@ -32,96 +69,98 @@ router.post('/', [
       notes
     } = req.body;
 
-    // Validate service ID
-    if (!mongoose.Types.ObjectId.isValid(service)) {
-      return res.status(400).json({ message: 'Invalid service ID' });
-    }
-
     // Check if service exists and is active
-    const serviceDoc = await Service.findById(service);
-    if (!serviceDoc || !serviceDoc.isActive) {
+    const serviceDoc = await prisma.service.findUnique({
+      where: { id: service }
+    });
+    if (!serviceDoc) {
       return res.status(400).json({ message: 'Service not found or inactive' });
     }
 
     // Check for existing booking at same time
-    const existingBooking = await Booking.findOne({
-      appointmentDate: new Date(appointmentDate),
-      appointmentTime,
-      status: { $in: ['pending', 'confirmed'] }
+    const existingBooking = await prisma.booking.findFirst({
+      where: {
+        bookingDate: new Date(appointmentDate),
+        bookingTime: appointmentTime,
+        status: { in: ['pending', 'confirmed'] }
+      }
     });
 
     if (existingBooking) {
       return res.status(400).json({ message: 'Time slot already booked' });
     }
 
-    const booking = new Booking({
-      customerName,
-      customerEmail,
-      customerPhone,
-      service,
-      stylist,
-      appointmentDate: new Date(appointmentDate),
-      appointmentTime,
-      notes
-    });
-
-    await booking.save();
-
-    // Track analytics
-    const analytics = new Analytics({
-      type: 'booking_created',
-      bookingId: booking._id,
-      metadata: {
-        userAgent: req.get('User-Agent'),
-        ipAddress: req.ip
+    // Validate staff if provided
+    let staffDoc = null;
+    if (stylist) {
+      staffDoc = await prisma.staff.findUnique({
+        where: { id: stylist }
+      });
+      if (!staffDoc || !staffDoc.isActive) {
+        return res.status(400).json({ message: 'Staff member not found or inactive' });
       }
-    });
-    await analytics.save();
-    
-    // Add customer to loyalty program if they don't exist
-    try {
-      // Check if loyalty program is active
-      const loyaltyProgram = await LoyaltyProgram.findOne({ isActive: true });
-      
-      if (loyaltyProgram) {
-        // Find or create customer loyalty record
-        let customerLoyalty = await CustomerLoyalty.findOne({ 
-          customerEmail: customerEmail.toLowerCase() 
-        });
-        
-        if (!customerLoyalty) {
-          // Create new customer loyalty record
-          customerLoyalty = new CustomerLoyalty({
-            customerEmail: customerEmail.toLowerCase(),
-            customerName,
-            customerPhone
-          });
-          await customerLoyalty.save();
-        }
-      }
-    } catch (loyaltyError) {
-      console.error('Loyalty program error:', loyaltyError);
-      // Don't fail the booking if loyalty program fails
     }
+
+    // Process uploaded images
+    const inspirationImages = [];
+    const currentHairImages = {};
+
+    if (req.files) {
+      // Process inspiration images
+      if (req.files.inspirationImages) {
+        req.files.inspirationImages.forEach(file => {
+          inspirationImages.push(`/uploads/bookings/${file.filename}`);
+        });
+      }
+
+      // Process current hair images
+      ['front', 'back', 'top'].forEach(angle => {
+        const fieldName = `currentHair_${angle}`;
+        if (req.files[fieldName] && req.files[fieldName][0]) {
+          currentHairImages[angle] = `/uploads/bookings/${req.files[fieldName][0].filename}`;
+        }
+      });
+    }
+
+    // Create booking
+    const booking = await prisma.booking.create({
+      data: {
+        customerName,
+        customerEmail,
+        customerPhone,
+        serviceId: serviceDoc.id,
+        staffId: staffDoc ? staffDoc.id : null,
+        bookingDate: new Date(appointmentDate),
+        bookingTime: appointmentTime,
+        notes,
+        inspirationImages,
+        currentHairImages: Object.keys(currentHairImages).length > 0 ? currentHairImages : null,
+        status: 'pending'
+      },
+      include: {
+        service: true,
+        staff: true
+      }
+    });
 
     // Send confirmation email
     try {
-      await sendBookingConfirmation(booking);
+      await sendBookingConfirmation({
+        customerName,
+        customerEmail,
+        serviceName: serviceDoc.name,
+        appointmentDate,
+        appointmentTime,
+        staffName: staffDoc ? staffDoc.name : 'Any available stylist'
+      });
     } catch (emailError) {
-      console.error('Email sending failed:', emailError);
+      console.error('Failed to send confirmation email:', emailError);
       // Don't fail the booking if email fails
     }
 
     res.status(201).json({
       message: 'Booking created successfully',
-      booking: {
-        id: booking._id,
-        customerName: booking.customerName,
-        service: booking.service,
-        appointmentDate: booking.appointmentDate,
-        appointmentTime: booking.appointmentTime,
-        status: booking.status
-      }
+      booking
     });
   } catch (error) {
     console.error('Booking creation error:', error);
