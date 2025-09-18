@@ -46,10 +46,17 @@ app.use(cors({
     const allowedOrigins = [
       'http://localhost:3000',
       'https://glam-elegance.vercel.app',
+      'https://glam-elegance-lmo57cg84-paul-makos-projects.vercel.app',
+      'https://glam-elegance-8cbwgd1by-paul-makos-projects.vercel.app',
       process.env.CLIENT_URL
     ].filter(Boolean);
 
     if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    // Allow any Vercel deployment of this project
+    if (origin && origin.includes('glam-elegance') && origin.includes('vercel.app')) {
       return callback(null, true);
     }
 
