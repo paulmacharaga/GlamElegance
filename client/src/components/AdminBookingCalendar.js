@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -58,9 +58,9 @@ const AdminBookingCalendar = () => {
     status: 'pending'
   });
 
-  // Get the start and end of the current week
-  const startOfWeek = currentDate.startOf('week');
-  const endOfWeek = currentDate.endOf('week');
+  // Get the start and end of the current week (memoized to prevent infinite loops)
+  const startOfWeek = useMemo(() => currentDate.startOf('week'), [currentDate]);
+  const endOfWeek = useMemo(() => currentDate.endOf('week'), [currentDate]);
   
   // Business hours
   const businessHours = [
@@ -75,11 +75,16 @@ const AdminBookingCalendar = () => {
       setStaff(response.data);
     } catch (error) {
       console.error('Error fetching staff:', error);
-      setError('Failed to load staff members');
+      if (error.response?.status === 401) {
+        setError('Authentication failed while loading staff. Please refresh the page or log in again.');
+        toast.error('Authentication failed. Please refresh or log in again.');
+      } else {
+        setError('Failed to load staff members');
+      }
     }
   };
 
-  const fetchBookings = useCallback(async () => {
+  const refreshBookings = async () => {
     setLoading(true);
     try {
       const startDate = startOfWeek.format('YYYY-MM-DD');
@@ -95,21 +100,59 @@ const AdminBookingCalendar = () => {
       setError(null);
     } catch (error) {
       console.error('Error fetching bookings:', error);
+      
+      if (error.response?.status === 401) {
+        setError('Authentication failed. Please refresh the page or log in again.');
+        toast.error('Authentication failed. Please refresh the page or log in again.');
+        return;
+      }
+      
       setError('Failed to load bookings');
-      setBookings([]); // Set empty array to show calendar even when API fails
+      setBookings([]);
       toast.error('Failed to load bookings');
     } finally {
       setLoading(false);
     }
-  }, [startOfWeek, endOfWeek, selectedStaff]);
+  };
 
   useEffect(() => {
     fetchStaff();
   }, []);
 
   useEffect(() => {
-    fetchBookings();
-  }, [currentDate, selectedStaff, fetchBookings]);
+    const loadBookings = async () => {
+      setLoading(true);
+      try {
+        const startDate = startOfWeek.format('YYYY-MM-DD');
+        const endDate = endOfWeek.format('YYYY-MM-DD');
+
+        let url = `/api/bookings?startDate=${startDate}&endDate=${endDate}`;
+        if (selectedStaff) {
+          url += `&stylist=${selectedStaff}`;
+        }
+
+        const response = await api.get(url);
+        setBookings(response.data.bookings || []);
+        setError(null);
+      } catch (error) {
+        console.error('Error fetching bookings:', error);
+        
+        if (error.response?.status === 401) {
+          setError('Authentication failed. Please refresh the page or log in again.');
+          toast.error('Authentication failed. Please refresh the page or log in again.');
+          return;
+        }
+        
+        setError('Failed to load bookings');
+        setBookings([]);
+        toast.error('Failed to load bookings');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadBookings();
+  }, [startOfWeek, endOfWeek, selectedStaff]);
 
   const handlePreviousWeek = () => {
     setCurrentDate(currentDate.subtract(1, 'week'));
@@ -127,7 +170,7 @@ const AdminBookingCalendar = () => {
     try {
       await api.patch(`/api/bookings/${bookingId}/status`, { status });
       toast.success('Booking status updated');
-      fetchBookings();
+      refreshBookings();
     } catch (error) {
       console.error('Failed to update booking status:', error);
       toast.error('Failed to update booking status');
@@ -165,7 +208,7 @@ const AdminBookingCalendar = () => {
       try {
         await api.delete(`/api/bookings/${selectedBooking._id}`);
         toast.success('Booking deleted successfully');
-        fetchBookings();
+        refreshBookings();
       } catch (error) {
         console.error('Failed to delete booking:', error);
         toast.error('Failed to delete booking');
@@ -188,7 +231,7 @@ const AdminBookingCalendar = () => {
       await api.patch(`/api/bookings/${editDialog.booking._id}`, updateData);
       toast.success('Booking updated successfully');
       setEditDialog({ open: false, booking: null });
-      fetchBookings();
+      refreshBookings();
     } catch (error) {
       console.error('Failed to update booking:', error);
       toast.error('Failed to update booking');
@@ -261,7 +304,29 @@ const AdminBookingCalendar = () => {
 
   return (
     <Box sx={{ width: '100%' }}>
-      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {error && (
+        <Alert 
+          severity="error" 
+          sx={{ mb: 2 }}
+          action={
+            error.includes('Authentication failed') || error.includes('session') ? (
+              <Button 
+                color="inherit" 
+                size="small" 
+                onClick={() => {
+                  localStorage.removeItem('staffToken');
+                  localStorage.removeItem('staff');
+                  window.location.href = '/admin';
+                }}
+              >
+                LOG OUT
+              </Button>
+            ) : null
+          }
+        >
+          {error}
+        </Alert>
+      )}
       
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5" component="h2" sx={{ display: 'flex', alignItems: 'center' }}>
@@ -277,9 +342,9 @@ const AdminBookingCalendar = () => {
               label="Filter by Staff"
               onChange={handleStaffChange}
             >
-              <MenuItem value="">All Staff</MenuItem>
+              <MenuItem key="all-staff" value="">All Staff</MenuItem>
               {staff.map((staffMember) => (
-                <MenuItem key={staffMember._id} value={staffMember.name}>
+                <MenuItem key={staffMember.id || staffMember._id} value={staffMember.name}>
                   {staffMember.name}
                 </MenuItem>
               ))}

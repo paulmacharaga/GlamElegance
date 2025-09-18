@@ -34,9 +34,9 @@ import {
   History,
   Search
 } from '@mui/icons-material';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import api from '../utils/api';
 
 const LoyaltyManagement = () => {
   // Loyalty Program Settings State
@@ -47,6 +47,8 @@ const LoyaltyManagement = () => {
     pointsPerDollar: 1,
     rewardThreshold: 100,
     rewardAmount: 10,
+    birthdayDiscountRate: 20,
+    birthdayDiscountDays: 7,
     isActive: true
   });
   const [loading, setLoading] = useState(false);
@@ -78,12 +80,16 @@ const LoyaltyManagement = () => {
   const fetchCustomers = useCallback(async () => {
     setCustomersLoading(true);
     try {
-      const response = await axios.get(`/api/loyalty/customers?page=${page + 1}&limit=${rowsPerPage}`);
-      setCustomers(response.data.customers);
-      setTotalCustomers(response.data.total);
+      const response = await api.get(`/api/loyalty/customers?page=${page + 1}&limit=${rowsPerPage}`);
+      setCustomers(response.data.customers || []);
+      setTotalCustomers(response.data.total || 0);
     } catch (error) {
-      console.error('Error fetching loyalty customers:', error);
-      toast.error('Failed to load loyalty customers');
+      if (error.response?.status !== 404) {
+        console.error('Error fetching loyalty customers:', error);
+        toast.error('Failed to load loyalty customers');
+      }
+      setCustomers([]);
+      setTotalCustomers(0);
     } finally {
       setCustomersLoading(false);
     }
@@ -98,14 +104,15 @@ const LoyaltyManagement = () => {
   const fetchLoyaltyProgram = async () => {
     setLoading(true);
     try {
-      const response = await axios.get('/api/loyalty/program');
+      const response = await api.get('/api/loyalty/program');
       setProgramSettings(response.data);
+      setError(null);
     } catch (error) {
-      console.error('Error fetching loyalty program:', error);
-      if (error.response && error.response.status === 404) {
-        // No program exists yet, use defaults
+      if (error.response?.status === 404) {
+        // No program exists yet, use defaults - this is normal, not an error
         setError('No loyalty program configured yet. Create one below.');
       } else {
+        console.error('Error fetching loyalty program:', error);
         setError('Failed to load loyalty program settings.');
         toast.error('Failed to load loyalty program settings');
       }
@@ -119,7 +126,7 @@ const LoyaltyManagement = () => {
   const fetchCustomerHistory = async (email) => {
     setHistoryLoading(true);
     try {
-      const response = await axios.get(`/api/loyalty/customer/${email}/history`);
+      const response = await api.get(`/api/loyalty/customer/${email}/history`);
       setCustomerHistory(response.data.history || []);
     } catch (error) {
       console.error('Error fetching customer history:', error);
@@ -136,7 +143,7 @@ const LoyaltyManagement = () => {
     setSuccess(false);
     
     try {
-      await axios.post('/api/loyalty/program', programSettings);
+      await api.post('/api/loyalty/program', programSettings);
       setSuccess(true);
       toast.success('Loyalty program settings saved successfully');
       
@@ -196,7 +203,7 @@ const LoyaltyManagement = () => {
 
   const handleAddPoints = async () => {
     try {
-      await axios.post(`/api/loyalty/customer/${selectedCustomer.customerEmail}/add-points`, {
+      await api.post(`/api/loyalty/customer/${selectedCustomer.customerEmail}/add-points`, {
         points: pointsToAdd,
         description: pointsDescription
       });
@@ -223,10 +230,10 @@ const LoyaltyManagement = () => {
     
     setCustomersLoading(true);
     try {
-      const response = await axios.get(`/api/loyalty/customer/${searchEmail}`);
+      const response = await api.get(`/api/loyalty/customer/${searchEmail}`);
       if (response.data) {
         // Find the customer in the database to get full details
-        const customerResponse = await axios.get(`/api/loyalty/customers`);
+        const customerResponse = await api.get(`/api/loyalty/customers`);
         const foundCustomer = customerResponse.data.customers.find(
           c => c.customerEmail.toLowerCase() === searchEmail.toLowerCase()
         );
@@ -380,6 +387,42 @@ const LoyaltyManagement = () => {
                 startAdornment: (
                   <InputAdornment position="start">
                     $
+                  </InputAdornment>
+                ),
+              }}
+            />
+            
+            <TextField
+              label="Birthday Discount Rate"
+              name="birthdayDiscountRate"
+              type="number"
+              value={programSettings.birthdayDiscountRate}
+              onChange={handleInputChange}
+              margin="normal"
+              variant="outlined"
+              helperText="Birthday discount percentage"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    %
+                  </InputAdornment>
+                ),
+              }}
+            />
+            
+            <TextField
+              label="Birthday Discount Days"
+              name="birthdayDiscountDays"
+              type="number"
+              value={programSettings.birthdayDiscountDays}
+              onChange={handleInputChange}
+              margin="normal"
+              variant="outlined"
+              helperText="Days before/after birthday discount is valid"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    days
                   </InputAdornment>
                 ),
               }}

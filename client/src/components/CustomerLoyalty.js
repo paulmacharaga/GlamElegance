@@ -22,7 +22,6 @@ import {
   EmojiEvents,
   Search
 } from '@mui/icons-material';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const CustomerLoyalty = ({ bookingEmail, onRedeemSuccess }) => {
@@ -50,8 +49,9 @@ const CustomerLoyalty = ({ bookingEmail, onRedeemSuccess }) => {
   const fetchLoyaltyProgram = async () => {
     setProgramLoading(true);
     try {
-      const response = await axios.get('/api/loyalty/program');
-      setProgramInfo(response.data);
+      const response = await fetch('/api/loyalty/program');
+      const data = await response.json();
+      setProgramInfo(data);
     } catch (error) {
       console.error('Error fetching loyalty program:', error);
       // Don't show error for program info, it's not critical
@@ -65,8 +65,9 @@ const CustomerLoyalty = ({ bookingEmail, onRedeemSuccess }) => {
     setError(null);
     
     try {
-      const response = await axios.get(`/api/loyalty/customer/${customerEmail}`);
-      setLoyaltyInfo(response.data);
+      const response = await fetch(`/api/loyalty/customer/${customerEmail}`);
+      const data = await response.json();
+      setLoyaltyInfo(data);
     } catch (error) {
       console.error('Error fetching customer loyalty:', error);
       if (error.response && error.response.status === 404) {
@@ -98,7 +99,15 @@ const CustomerLoyalty = ({ bookingEmail, onRedeemSuccess }) => {
 
   const handleRedeem = async () => {
     try {
-      const response = await axios.post(`/api/loyalty/customer/${email}/redeem`);
+      const response = await fetch(`/api/loyalty/customer/${email}/redeem`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to redeem points');
+      }
       
       toast.success('Points redeemed successfully!');
       setRedeemDialogOpen(false);

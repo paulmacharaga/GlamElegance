@@ -1,11 +1,11 @@
 const express = require('express');
 const prisma = require('../lib/prisma');
-const auth = require('../middleware/auth');
+const staffAuth = require('../middleware/staffAuth');
 
 const router = express.Router();
 
 // Get analytics dashboard data
-router.get('/dashboard', auth, async (req, res) => {
+router.get('/dashboard', staffAuth, async (req, res) => {
   try {
     const { period = '30' } = req.query; // days
     const startDate = new Date();
@@ -101,7 +101,7 @@ router.get('/dashboard', auth, async (req, res) => {
 });
 
 // Get conversion funnel
-router.get('/funnel', auth, async (req, res) => {
+router.get('/funnel', staffAuth, async (req, res) => {
   try {
     const { period = '30' } = req.query;
     const startDate = new Date();

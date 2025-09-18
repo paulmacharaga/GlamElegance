@@ -17,7 +17,6 @@ import {
   CheckCircle
 } from '@mui/icons-material';
 import dayjs from 'dayjs';
-import axios from 'axios';
 import toast from 'react-hot-toast';
 
 const BookingCalendar = ({ onSelectTimeSlot, selectedService }) => {
@@ -70,12 +69,13 @@ const BookingCalendar = ({ onSelectTimeSlot, selectedService }) => {
       let queryParams = `startDate=${startDate}&endDate=${endDate}`;
       if (selectedService) queryParams += `&serviceId=${selectedService}`;
 
-      const response = await axios.get(`/api/bookings/availability?${queryParams}`);
+      const response = await fetch(`/api/bookings/availability?${queryParams}`);
+      const data = await response.json();
 
-      if (response.data && typeof response.data.availableSlots === 'object') {
-        setAvailableSlots(response.data.availableSlots);
+      if (data && typeof data.availableSlots === 'object') {
+        setAvailableSlots(data.availableSlots);
       } else {
-        console.warn('Invalid availability response format:', response.data);
+        console.warn('Invalid availability response format:', data);
         setAvailableSlots({});
       }
     } catch (error) {

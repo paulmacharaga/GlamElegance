@@ -1,12 +1,12 @@
 const express = require('express');
 const QRCode = require('qrcode');
 const Analytics = require('../models/Analytics');
-const auth = require('../middleware/auth');
+const staffAuth = require('../middleware/staffAuth');
 
 const router = express.Router();
 
 // Generate QR code
-router.get('/generate', auth, async (req, res) => {
+router.get('/generate', staffAuth, async (req, res) => {
   try {
     const baseUrl = process.env.CLIENT_URL || 'http://localhost:3000';
     const qrUrl = `${baseUrl}/scan`;

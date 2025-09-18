@@ -3,27 +3,15 @@ const { PrismaClient } = require('@prisma/client');
 // Global variable to store the Prisma client instance
 let prisma;
 
-// Initialize Prisma client with proper configuration for serverless
+// Initialize Prisma client with direct connection
 if (process.env.NODE_ENV === 'production') {
-  // In production, create a new instance
   prisma = new PrismaClient({
-    log: ['error'],
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL,
-      },
-    },
+    log: ['error']
   });
 } else {
-  // In development, use global variable to prevent multiple instances
   if (!global.prisma) {
     global.prisma = new PrismaClient({
-      log: ['query', 'info', 'warn', 'error'],
-      datasources: {
-        db: {
-          url: process.env.DATABASE_URL,
-        },
-      },
+      log: ['query', 'info', 'warn', 'error']
     });
   }
   prisma = global.prisma;

@@ -31,7 +31,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
-import api from '../utils/api';
+// Note: Using fetch for public endpoints, api utility for authenticated endpoints
 import toast from 'react-hot-toast';
 import CustomerLoyalty from './CustomerLoyalty';
 
@@ -99,9 +99,15 @@ const BookingForm = () => {
     setLoadingServices(true);
     setError(null);
     try {
-      const response = await api.get('/api/services');
+      const response = await fetch('/api/services');
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch services');
+      }
+      
       // Only include active services
-      const activeServices = response.data.filter(service => service.isActive);
+      const activeServices = data.filter(service => service.isActive);
       setServices(activeServices);
     } catch (error) {
       console.error('Error fetching services:', error);
@@ -117,11 +123,18 @@ const BookingForm = () => {
     setLoadingSlots(true);
     try {
       const formattedDate = dayjs(date).format('YYYY-MM-DD');
-      const response = await api.get(`/api/bookings/availability/${formattedDate}`);
-      setAvailableSlots(response.data.availableSlots);
+      const response = await fetch(`/api/bookings/availability/${formattedDate}`);
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to fetch availability');
+      }
+      
+      setAvailableSlots(data.availableSlots || []);
     } catch (error) {
       console.error('Failed to fetch available slots:', error);
       toast.error('Failed to load available time slots');
+      setAvailableSlots([]);
     } finally {
       setLoadingSlots(false);
     }
@@ -250,19 +263,32 @@ const BookingForm = () => {
       });
 
       // Create the booking with images
-      const bookingResponse = await api.post('/api/bookings', formDataToSend, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      const bookingResponse = await fetch('/api/bookings', {
+        method: 'POST',
+        body: formDataToSend,
+        // Don't set Content-Type header - let browser set it for FormData
       });
+      
+      const bookingData = await bookingResponse.json();
+      
+      if (!bookingResponse.ok) {
+        throw new Error(bookingData.message || 'Failed to create booking');
+      }
       
       // If using loyalty reward, redeem points
       if (formData.useReward && loyaltyReward) {
         try {
-          await api.post(`/api/loyalty/customer/${formData.customerEmail}/redeem`, {
-            bookingId: bookingResponse.data.booking.id
+          const loyaltyResponse = await fetch(`/api/loyalty/customer/${formData.customerEmail}/redeem`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              bookingId: bookingData.booking.id
+            })
           });
-          toast.success('Loyalty reward applied to your booking!');
+          
+          if (loyaltyResponse.ok) {
+            toast.success('Loyalty reward applied to your booking!');
+          }
         } catch (loyaltyError) {
           console.error('Loyalty redemption error:', loyaltyError);
           // Don't fail the booking if loyalty redemption fails
@@ -273,7 +299,7 @@ const BookingForm = () => {
       navigate('/thank-you?type=booking');
     } catch (error) {
       console.error('Booking error:', error);
-      const message = error.response?.data?.message || 'Failed to create booking';
+      const message = error.message || 'Failed to create booking';
       toast.error(message);
     } finally {
       setLoading(false);

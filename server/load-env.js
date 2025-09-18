@@ -21,14 +21,26 @@ if (fs.existsSync(envPath)) {
 }
 
 // Verify critical environment variables are available
-const requiredVars = ['MONGODB_URI', 'JWT_SECRET'];
+const requiredVars = ['JWT_SECRET', 'DATABASE_URL'];
 const missingVars = requiredVars.filter(varName => !process.env[varName]);
 
 if (missingVars.length > 0) {
   console.error('Missing required environment variables:', missingVars);
 } else {
   console.log('All required environment variables are available');
+  
+  // Check if SQLite database file exists
+  if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('file:')) {
+    const dbPath = process.env.DATABASE_URL.replace('file:', '').trim();
+    const dbFullPath = path.resolve(__dirname, dbPath);
+    
+    if (!fs.existsSync(dbFullPath)) {
+      console.warn(`Warning: SQLite database file not found at ${dbFullPath}`);
+      console.warn('A new database will be created when the server starts');
+    }
+  }
 }
+
 console.log('Google OAuth credentials:', {
   clientIdExists: !!process.env.GOOGLE_CLIENT_ID,
   clientSecretExists: !!process.env.GOOGLE_CLIENT_SECRET,

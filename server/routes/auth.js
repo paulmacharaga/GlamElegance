@@ -3,8 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const prisma = require('../lib/prisma');
-const auth = require('../middleware/auth');
-const passport = require('../config/passport');
+const staffAuth = require('../middleware/staffAuth');
 
 const router = express.Router();
 
@@ -21,46 +20,63 @@ router.post('/register', [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { username, email, password, name, role } = req.body;
+    const { username, email, password, name, role = 'staff' } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({
-      $or: [{ email }, { username }]
+    // Check if staff already exists
+    const existingStaff = await prisma.staff.findFirst({
+      where: {
+        OR: [
+          { email },
+          { name: username }
+        ]
+      }
     });
 
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+    if (existingStaff) {
+      return res.status(400).json({ message: 'Staff with this email or name already exists' });
     }
 
-    const user = new User({
-      username,
-      email,
-      password,
-      name,
-      role: role || 'staff'
+    // Hash password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Create staff
+    const staff = await prisma.staff.create({
+      data: {
+        name: username,
+        email,
+        password: hashedPassword,
+        role,
+        isActive: true
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        createdAt: true
+      }
     });
 
-    await user.save();
-
+    // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET,
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET || 'fallback_secret',
       { expiresIn: '24h' }
     );
 
     res.status(201).json({
       token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        name: user.name,
-        role: user.role
-      }
+      user
     });
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ 
+      message: 'Server error during registration',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -68,75 +84,71 @@ router.post('/register', [
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    console.log('Login attempt for:', username);
 
     // Basic validation
     if (!username || !password) {
-      return res.status(400).json({ message: 'Username and password are required' });
+      return res.status(400).json({ message: 'Username/email and password are required' });
     }
 
-    console.log('Looking for user:', username);
+    // Find user by username or email
     const user = await prisma.user.findFirst({
       where: {
         OR: [
-          { username: username },
+          { username },
           { email: username }
-        ],
+        ]
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        password: true,
+        name: true,
+        role: true,
         isActive: true
       }
     });
 
-    console.log('User found:', !!user);
+    // Check if user exists and is active
     if (!user) {
-      console.log('No user found for:', username);
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    console.log('Testing password...');
-    const isMatch = await bcrypt.compare(password, user.password);
-    console.log('Password match:', isMatch);
-
-    if (!isMatch) {
-      console.log('Password mismatch for user:', username);
-      return res.status(400).json({ message: 'Invalid credentials' });
+    if (!user.isActive) {
+      return res.status(401).json({ message: 'Your account has been deactivated' });
     }
 
-    console.log('Generating JWT token...');
-    console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
+    // Verify password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
 
+    // Generate JWT token
     const token = jwt.sign(
       { userId: user.id, role: user.role },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'fallback_secret',
       { expiresIn: '24h' }
     );
 
-    console.log('Login successful for:', username);
+    // Remove password from user object before sending response
+    const { password: _, ...userWithoutPassword } = user;
+
     res.json({
       token,
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        name: user.name,
-        role: user.role
-      }
+      user: userWithoutPassword
     });
   } catch (error) {
-    console.error('Login error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name
-    });
+    console.error('Login error:', error);
     res.status(500).json({
-      message: 'Server error',
-      error: error.message,
-      stack: error.stack
+      message: 'An error occurred during login',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
 
 // Get current user
-router.get('/me', auth, async (req, res) => {
+router.get('/me', staffAuth, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.userId },
@@ -167,26 +179,53 @@ const googleCredentialsAvailable =
 if (googleCredentialsAvailable) {
   router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
-  router.get('/google/callback', passport.authenticate('google', { session: false }), async (req, res) => {
-    try {
-      // Generate JWT token for the authenticated Google user
-      const token = jwt.sign(
-        { userId: req.user._id, role: req.user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
+  router.get('/google/callback', 
+    passport.authenticate('google', { 
+      session: false,
+      failureRedirect: `${process.env.CLIENT_URL}/admin/login?error=auth_failed`
+    }), 
+    async (req, res) => {
+      try {
+        if (!req.user) {
+          throw new Error('No user returned from Google authentication');
+        }
 
-      // Redirect to frontend with token
-      res.redirect(`${process.env.CLIENT_URL}/admin/google-auth-success?token=${token}`);
-    } catch (error) {
-      console.error('Google auth callback error:', error);
-      res.redirect(`${process.env.CLIENT_URL}/admin/login?error=auth_failed`);
+        // Generate JWT token for the authenticated Google user
+        const token = jwt.sign(
+          { 
+            userId: req.user.id, 
+            role: req.user.role 
+          },
+          process.env.JWT_SECRET || 'fallback_secret',
+          { expiresIn: '24h' }
+        );
+
+        // Prepare user data for the frontend
+        const userData = {
+          id: req.user.id,
+          username: req.user.username,
+          email: req.user.email,
+          name: req.user.name,
+          role: req.user.role,
+          avatar: req.user.avatar
+        };
+
+        // Redirect to frontend with token and user data
+        const redirectUrl = new URL(`${process.env.CLIENT_URL}/admin/google-auth-success`);
+        redirectUrl.searchParams.set('token', token);
+        redirectUrl.searchParams.set('user', encodeURIComponent(JSON.stringify(userData)));
+        
+        res.redirect(redirectUrl.toString());
+      } catch (error) {
+        console.error('Google auth callback error:', error);
+        res.redirect(`${process.env.CLIENT_URL}/admin/login?error=auth_failed&message=${encodeURIComponent(error.message)}`);
+      }
     }
-  });
+  );
 }
 
 // Link Google account to existing user
-router.post('/link-google', auth, async (req, res) => {
+router.post('/link-google', staffAuth, async (req, res) => {
   try {
     const { googleId, googleProfile, avatar } = req.body;
     
@@ -230,7 +269,7 @@ router.post('/link-google', auth, async (req, res) => {
 });
 
 // Unlink Google account
-router.post('/unlink-google', auth, async (req, res) => {
+router.post('/unlink-google', staffAuth, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId);
     

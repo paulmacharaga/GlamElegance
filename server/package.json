@@ -5,10 +5,11 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "create-admin": "node ../scripts/createAdminUser.js"
   },
   "dependencies": {
-    "@prisma/client": "^6.16.1",
+    "@prisma/client": "^6.16.2",
     "axios": "^1.11.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -19,13 +20,13 @@
     "express-validator": "^7.0.1",
     "helmet": "^7.0.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^7.5.0",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.4",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "prisma": "^6.16.1",
-    "qrcode": "^1.5.3"
+    "qrcode": "^1.5.3",
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "@faker-js/faker": "^9.9.0",

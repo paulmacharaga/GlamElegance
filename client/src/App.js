@@ -15,7 +15,9 @@ import ThankYou from './components/ThankYou';
 import GoogleAuthSuccess from './components/GoogleAuthSuccess';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
-import StaffManagement from './components/StaffManagement';
+import CustomerLogin from './components/CustomerLogin';
+import CustomerDashboard from './components/CustomerDashboard';
+import CustomerProtectedRoute from './components/CustomerProtectedRoute';
 
 // Create Glam Elegance theme
 const theme = createTheme({
@@ -99,11 +101,26 @@ function App() {
               {/* Protected admin routes */}
               <Route element={<ProtectedRoute />}>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                <Route path="/admin/bookings" element={<AdminDashboard />} />
+                <Route path="/admin/services" element={<AdminDashboard />} />
+                <Route path="/admin/staff" element={<AdminDashboard />} />
+                <Route path="/admin/customers" element={<AdminDashboard />} />
+                <Route path="/admin/loyalty" element={<AdminDashboard />} />
                 <Route path="/admin/qr" element={<QRGenerator />} />
-                <Route path="/admin/staff" element={<StaffManagement />} />
               </Route>
               
               <Route path="/admin/google-auth-success" element={<GoogleAuthSuccess />} />
+              
+              {/* Customer routes */}
+              <Route path="/customer" element={<CustomerLogin />} />
+              
+              {/* Protected customer routes */}
+              <Route element={<CustomerProtectedRoute />}>
+                <Route path="/customer/dashboard" element={<CustomerDashboard />} />
+                <Route path="/customer/bookings" element={<CustomerDashboard />} />
+                <Route path="/customer/loyalty" element={<CustomerDashboard />} />
+                <Route path="/customer/profile" element={<CustomerDashboard />} />
+              </Route>
               <Route path="/thank-you" element={<ThankYou />} />
             </Routes>
             <Toaster

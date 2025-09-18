@@ -4,7 +4,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const prisma = require('../lib/prisma');
-const auth = require('../middleware/auth');
+const staffAuth = require('../middleware/staffAuth');
 const { sendBookingConfirmation } = require('../utils/email');
 
 // Configure multer for file uploads
@@ -236,8 +236,9 @@ router.post('/', upload.fields([
 });
 
 // Get all bookings (admin/staff only)
-router.get('/', auth, async (req, res) => {
+router.get('/', staffAuth, async (req, res) => {
   try {
+    console.log('📅 GET /api/bookings - Query params:', req.query);
     const { page = 1, limit = 10, status, date, startDate, endDate, stylist } = req.query;
 
     // Build Prisma where clause
@@ -289,6 +290,14 @@ router.get('/', auth, async (req, res) => {
             price: true,
             isActive: true
           }
+        },
+        staff: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          }
         }
       },
       orderBy: [
@@ -304,8 +313,18 @@ router.get('/', auth, async (req, res) => {
 
     const total = await prisma.booking.count({ where });
 
+    // Ensure dates are properly serialized
+    const serializedBookings = bookings.map(booking => ({
+      ...booking,
+      bookingDate: booking.bookingDate.toISOString(),
+      createdAt: booking.createdAt.toISOString(),
+      updatedAt: booking.updatedAt.toISOString()
+    }));
+
+    console.log('✅ Bookings query successful - Found:', serializedBookings.length, 'bookings');
+    
     res.json({
-      bookings,
+      bookings: serializedBookings,
       totalPages: usePagination ? Math.ceil(total / parseInt(limit)) : 1,
       currentPage: usePagination ? parseInt(page) : 1,
       total
@@ -321,7 +340,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Update booking status
-router.patch('/:id/status', auth, [
+router.patch('/:id/status', staffAuth, [
   body('status').isIn(['pending', 'confirmed', 'completed', 'cancelled']).withMessage('Invalid status')
 ], async (req, res) => {
   try {
@@ -331,11 +350,10 @@ router.patch('/:id/status', auth, [
     }
 
     const { status } = req.body;
-    const booking = await Booking.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    );
+    const booking = await prisma.booking.update({
+      where: { id: req.params.id },
+      data: { status }
+    });
 
     if (!booking) {
       return res.status(404).json({ message: 'Booking not found' });
@@ -345,31 +363,36 @@ router.patch('/:id/status', auth, [
     if (status === 'completed') {
       try {
         // Check if loyalty program is active
-        const loyaltyProgram = await LoyaltyProgram.findOne({ isActive: true });
+        const loyaltyProgram = await prisma.loyaltyProgram.findFirst({ where: { isActive: true } });
         
         if (loyaltyProgram) {
           // Find or create customer loyalty record
-          let customerLoyalty = await CustomerLoyalty.findOne({ 
-            customerEmail: booking.customerEmail.toLowerCase() 
+          let customerLoyalty = await prisma.customerLoyalty.findFirst({ 
+            where: { customerEmail: booking.customerEmail.toLowerCase() }
           });
           
           if (!customerLoyalty) {
             // Create new customer loyalty record
-            customerLoyalty = new CustomerLoyalty({
-              customerEmail: booking.customerEmail.toLowerCase(),
-              customerName: booking.customerName,
-              customerPhone: booking.customerPhone
+            customerLoyalty = await prisma.customerLoyalty.create({
+              data: {
+                customerEmail: booking.customerEmail.toLowerCase(),
+                customerName: booking.customerName,
+                customerPhone: booking.customerPhone,
+                totalPoints: 0,
+                lifetimePoints: 0
+              }
             });
-            await customerLoyalty.save();
           }
           
           // Add points for completed booking
-          await customerLoyalty.addPoints(
-            loyaltyProgram.pointsPerBooking,
-            'booking',
-            booking._id,
-            `Points earned for ${booking.service} appointment`
-          );
+          const pointsToAdd = loyaltyProgram.pointsPerBooking || 10;
+          await prisma.customerLoyalty.update({
+            where: { id: customerLoyalty.id },
+            data: {
+              totalPoints: { increment: pointsToAdd },
+              lifetimePoints: { increment: pointsToAdd }
+            }
+          });
         }
       } catch (loyaltyError) {
         console.error('Loyalty program error:', loyaltyError);
@@ -384,6 +407,35 @@ router.patch('/:id/status', auth, [
     });
   } catch (error) {
     console.error('Update booking error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Update booking (general update endpoint)
+router.patch('/:id', staffAuth, async (req, res) => {
+  try {
+    const { customerName, customerEmail, customerPhone, bookingDate, bookingTime, notes, status } = req.body;
+    
+    const updateData = {};
+    if (customerName) updateData.customerName = customerName;
+    if (customerEmail) updateData.customerEmail = customerEmail;
+    if (customerPhone) updateData.customerPhone = customerPhone;
+    if (bookingDate) updateData.bookingDate = new Date(bookingDate);
+    if (bookingTime) updateData.bookingTime = bookingTime;
+    if (notes) updateData.notes = notes;
+    if (status) updateData.status = status;
+    
+    const booking = await prisma.booking.update({
+      where: { id: req.params.id },
+      data: updateData
+    });
+
+    res.json(booking);
+  } catch (error) {
+    console.error('Error updating booking:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Booking not found' });
+    }
     res.status(500).json({ message: 'Server error' });
   }
 });

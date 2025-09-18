@@ -22,14 +22,13 @@ const GoogleAuthSuccess = () => {
         }
         
         // Store token in localStorage
-        localStorage.setItem('token', token);
-        
-        // Set default authorization header
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        localStorage.setItem('staffToken', token);
         
         // Get user info
-        const response = await axios.get('/api/auth/me');
-        localStorage.setItem('user', JSON.stringify(response.data));
+        const response = await axios.get('/api/staff-auth/me', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        localStorage.setItem('staff', JSON.stringify(response.data));
         
         toast.success('Successfully signed in with Google');
         navigate('/admin/dashboard');

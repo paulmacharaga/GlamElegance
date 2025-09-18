@@ -18,7 +18,8 @@ import {
   Feedback,
   Spa,
   ContentCut,
-  Palette
+  Palette,
+  Person
 } from '@mui/icons-material';
 import api from '../utils/api';
 
@@ -80,6 +81,13 @@ const LandingPage = () => {
       icon: <BookOnline sx={{ fontSize: 40, color: theme.palette.secondary.main }} />,
       action: () => navigate('/book'),
       color: 'linear-gradient(135deg, #E91E63 0%, #F48FB1 100%)'
+    },
+    {
+      title: 'Customer Portal',
+      description: 'Access your bookings & rewards',
+      icon: <Person sx={{ fontSize: 40, color: 'white' }} />,
+      action: () => navigate('/customer'),
+      color: 'linear-gradient(135deg, #4CAF50 0%, #8BC34A 100%)'
     }
   ];
 
@@ -161,9 +169,9 @@ const LandingPage = () => {
         </Box>
 
         {/* Action Cards */}
-        <Grid container spacing={3} mb={4}>
+        <Grid container spacing={{ xs: 1, sm: 2, md: 3 }} mb={4}>
           {actionCards.map((card, index) => (
-            <Grid item xs={12} md={4} key={index}>
+            <Grid item xs={3} sm={3} md={3} key={index}>
               <Card
                 sx={{
                   height: '100%',
@@ -179,26 +187,28 @@ const LandingPage = () => {
                 }}
                 onClick={card.action}
               >
-                <CardContent sx={{ textAlign: 'center', p: 3 }}>
+                <CardContent sx={{ textAlign: 'center', p: { xs: 1, sm: 1.5, md: 2.5 } }}>
                   <Box
                     sx={{
-                      width: 80,
-                      height: 80,
+                      width: { xs: 40, sm: 50, md: 70 },
+                      height: { xs: 40, sm: 50, md: 70 },
                       borderRadius: '50%',
                       background: card.color,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       mx: 'auto',
-                      mb: 2
+                      mb: { xs: 0.5, sm: 1, md: 1.5 }
                     }}
                   >
-                    {card.icon}
+                    {React.cloneElement(card.icon, { 
+                      sx: { fontSize: { xs: 20, sm: 28, md: 36 }, color: card.icon.props.sx.color } 
+                    })}
                   </Box>
-                  <Typography variant="h6" gutterBottom color="text.primary">
+                  <Typography variant="h6" gutterBottom color="text.primary" sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1.1rem' }, lineHeight: 1.2 }}>
                     {card.title}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem', md: '0.8rem' }, lineHeight: 1.2 }}>
                     {card.description}
                   </Typography>
                 </CardContent>

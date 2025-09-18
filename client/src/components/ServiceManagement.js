@@ -35,8 +35,8 @@ import {
   Search as SearchIcon,
   FilterList as FilterIcon
 } from '@mui/icons-material';
-import axios from 'axios';
 import toast from 'react-hot-toast';
+import api from '../utils/api';
 
 const ServiceManagement = () => {
   const [services, setServices] = useState([]);
@@ -61,10 +61,7 @@ const ServiceManagement = () => {
   const fetchServices = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('/api/services', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await api.get('/api/services');
       setServices(response.data);
       
       // Extract unique categories
@@ -124,17 +121,11 @@ const ServiceManagement = () => {
 
   const handleSubmit = async () => {
     try {
-      const token = localStorage.getItem('token');
-      
       if (dialogMode === 'add') {
-        await axios.post('/api/services', formData, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await api.post('/api/services', formData);
         toast.success('Service added successfully');
       } else {
-        await axios.put(`/api/services/${currentService._id}`, formData, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await api.put(`/api/services/${currentService._id}`, formData);
         toast.success('Service updated successfully');
       }
       
@@ -149,10 +140,7 @@ const ServiceManagement = () => {
   const handleDeleteService = async (serviceId) => {
     if (window.confirm('Are you sure you want to delete this service?')) {
       try {
-        const token = localStorage.getItem('token');
-        await axios.delete(`/api/services/${serviceId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await api.delete(`/api/services/${serviceId}`);
         toast.success('Service deleted successfully');
         fetchServices();
       } catch (error) {

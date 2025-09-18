@@ -1,9 +1,9 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
 const prisma = require('../lib/prisma');
+const staffAuth = require('../middleware/staffAuth');
+const { createStaffToken } = require('../utils/tokenUtils');
 const { sendPasswordResetEmail } = require('../utils/email');
 
 const router = express.Router();
@@ -54,16 +54,7 @@ router.post('/login', [
 
     // Generate JWT token
     console.log('🔑 Generating JWT token...');
-    const token = jwt.sign(
-      { 
-        staffId: staff.id, 
-        email: staff.email, 
-        role: staff.role,
-        type: 'staff'
-      },
-      process.env.JWT_SECRET || 'fallback_secret',
-      { expiresIn: '24h' }
-    );
+    const token = createStaffToken(staff);
 
     console.log('✅ Login successful');
     res.json({ 
@@ -91,19 +82,8 @@ router.post('/login', [
 });
 
 // Staff password change
-router.put('/change-password', async (req, res) => {
+router.put('/change-password', staffAuth, async (req, res) => {
   try {
-    const authHeader = req.header('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ message: 'No token provided' });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
-    
-    if (decoded.type !== 'staff') {
-      return res.status(403).json({ message: 'Access denied' });
-    }
 
     const { currentPassword, newPassword } = req.body;
 
@@ -112,7 +92,7 @@ router.put('/change-password', async (req, res) => {
     }
 
     const staff = await prisma.staff.findUnique({
-      where: { id: decoded.staffId }
+      where: { id: req.staff.id }
     });
 
     if (!staff) {
@@ -135,16 +115,7 @@ router.put('/change-password', async (req, res) => {
     });
 
     // Generate a new token since password has changed
-    const newToken = jwt.sign(
-      { 
-        staffId: staff.id, 
-        email: staff.email, 
-        role: staff.role,
-        type: 'staff'
-      },
-      process.env.JWT_SECRET || 'fallback_secret',
-      { expiresIn: '24h' }
-    );
+    const newToken = createStaffToken(staff);
 
     res.json({
       message: 'Password changed successfully',
@@ -260,6 +231,103 @@ router.post('/reset-password', [
   } catch (error) {
     console.error('Reset password error:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Get current staff profile (for /api/auth/me endpoint)
+router.get('/me', staffAuth, async (req, res) => {
+  try {
+    const staff = await prisma.staff.findUnique({
+      where: { id: req.staff.id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        googleId: true,
+        googleProfile: true,
+        avatar: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff member not found' });
+    }
+
+    res.json(staff);
+  } catch (error) {
+    console.error('Get staff profile error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Unlink Google account
+router.post('/unlink-google', staffAuth, async (req, res) => {
+  try {
+    const staff = await prisma.staff.findUnique({
+      where: { id: req.staff.id }
+    });
+
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff member not found' });
+    }
+
+    if (!staff.googleId) {
+      return res.status(400).json({ message: 'No Google account linked' });
+    }
+
+    // Remove Google account linking
+    const updatedStaff = await prisma.staff.update({
+      where: { id: req.staff.id },
+      data: {
+        googleId: null,
+        googleProfile: null,
+        avatar: null
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        googleId: true,
+        googleProfile: true,
+        avatar: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    res.json({
+      message: 'Google account unlinked successfully',
+      user: updatedStaff
+    });
+  } catch (error) {
+    console.error('Unlink Google account error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Debug endpoint to validate token
+router.get('/validate-token', staffAuth, async (req, res) => {
+  try {
+    console.log('🔍 Token validation successful for staff:', req.staff.email);
+    res.json({
+      valid: true,
+      staff: {
+        id: req.staff.id,
+        name: req.staff.name,
+        email: req.staff.email,
+        role: req.staff.role,
+        isActive: req.staff.isActive
+      }
+    });
+  } catch (error) {
+    console.error('Token validation error:', error);
+    res.status(500).json({ message: 'Server error during token validation' });
   }
 });
 

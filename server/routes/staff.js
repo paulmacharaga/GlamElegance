@@ -2,9 +2,70 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { body, validationResult } = require('express-validator');
 const prisma = require('../lib/prisma');
+const { createStaffToken } = require('../utils/tokenUtils');
 const staffAuth = require('../middleware/staffAuth');
 
 const router = express.Router();
+
+// Staff login
+router.post(
+  '/login',
+  [
+    body('email').isEmail().withMessage('Please include a valid email'),
+    body('password').exists().withMessage('Password is required'),
+  ],
+  async (req, res) => {
+    // Validate request
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, password } = req.body;
+
+    try {
+      // Check if staff exists
+      const staff = await prisma.staff.findUnique({
+        where: { email },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          password: true,
+          role: true,
+          isActive: true,
+        },
+      });
+
+      if (!staff) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+
+      if (!staff.isActive) {
+        return res.status(401).json({ message: 'Account is inactive. Please contact administrator.' });
+      }
+
+      // Check password
+      const isMatch = await bcrypt.compare(password, staff.password);
+      if (!isMatch) {
+        return res.status(401).json({ message: 'Invalid credentials' });
+      }
+
+      // Create standardized JWT token
+      const token = createStaffToken(staff);
+
+      // Return token and user info (without password)
+      const { password: _, ...userWithoutPassword } = staff;
+      res.json({
+        token,
+        user: userWithoutPassword,
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ message: 'Server error during login' });
+    }
+  }
+);
 
 // Get all staff members (admin only)
 router.get('/', staffAuth, staffAuth.staffAdmin, async (req, res) => {

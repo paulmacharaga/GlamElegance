@@ -16,8 +16,8 @@ import {
   TextField
 } from '@mui/material';
 import { ArrowBack, Download, Print, Refresh } from '@mui/icons-material';
-import axios from 'axios';
 import toast from 'react-hot-toast';
+import api from '../utils/api';
 import glamLogo from '../assets/glam-new-logo.png';
 
 const QRGenerator = () => {
@@ -26,22 +26,10 @@ const QRGenerator = () => {
   const [qrCode, setQrCode] = useState(null);
   const [qrUrl, setQrUrl] = useState('');
 
-  useEffect(() => {
-    // Check authentication
-    const token = localStorage.getItem('token');
-    if (!token) {
-      navigate('/admin');
-      return;
-    }
-
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-    generateQRCode();
-  }, [navigate, generateQRCode]);
-
   const generateQRCode = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await axios.get('/api/qr/generate');
+      const response = await api.get('/api/qr/generate');
       setQrCode(response.data.qrCode);
       setQrUrl(response.data.url);
       toast.success('QR Code generated successfully!');
@@ -56,6 +44,17 @@ const QRGenerator = () => {
       setLoading(false);
     }
   }, [navigate]);
+
+  useEffect(() => {
+    // Check authentication
+    const token = localStorage.getItem('staffToken');
+    if (!token) {
+      navigate('/admin');
+      return;
+    }
+
+    generateQRCode();
+  }, [navigate, generateQRCode]);
 
   const downloadQRCode = () => {
     if (!qrCode) return;

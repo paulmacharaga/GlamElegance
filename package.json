@@ -13,7 +13,13 @@
     "start": "cd server && npm start",
     "seed:loyalty": "cd server && node seed-loyalty.js"
   },
-  "keywords": ["glam-elegance", "beauty-salon", "qr-code", "booking", "reviews"],
+  "keywords": [
+    "glam-elegance",
+    "beauty-salon",
+    "qr-code",
+    "booking",
+    "reviews"
+  ],
   "author": "Glam Elegance",
   "license": "MIT",
   "engines": {
@@ -21,5 +27,10 @@
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "axios": "^1.12.2",
+    "bcryptjs": "^3.0.2",
+    "pg": "^8.16.3"
   }
 }

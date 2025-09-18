@@ -1,16 +1,10 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 model User {
@@ -22,7 +16,7 @@ model User {
   role      String   @default("user")
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@map("users")
 }
@@ -31,117 +25,141 @@ model Service {
   id          String   @id @default(cuid())
   name        String
   description String?
-  duration    Int      // in minutes
+  duration    Int
   price       Float
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  updatedAt   DateTime @default(now()) @updatedAt
 
-  bookings Booking[]
+  // Relations
+  bookings    Booking[]
 
   @@map("services")
 }
 
 model Staff {
-  id                String   @id @default(cuid())
-  name              String
-  email             String   @unique
-  phone             String?
-  password          String
-  role              String   @default("staff") // "staff" or "admin"
-  isActive          Boolean  @default(true)
-  resetToken        String?
-  resetTokenExpiry  DateTime?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id            String   @id @default(cuid())
+  name          String
+  email         String?  @unique
+  password      String
+  phone         String?
+  role          String   @default("staff")
+  isActive      Boolean  @default(true)
+  googleId      String?  @unique
+  googleProfile String?
+  avatar        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  bookings      Booking[]
 
   @@map("staff")
 }
 
 model Booking {
-  id                  String   @id @default(cuid())
-  customerName        String
-  customerEmail       String
-  customerPhone       String
-  serviceId           String
-  bookingDate         DateTime
-  bookingTime         String
-  status              String   @default("pending") // pending, confirmed, completed, cancelled
-  notes               String?
-  inspirationImages   String[] // Array of image URLs
-  currentHairImages   Json?    // JSON object with front, back, top image URLs
-  loyaltyPointsEarned Int?     // Points earned for this booking
-  customerLoyaltyId   String?  // Reference to customer's loyalty account
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id            String   @id @default(cuid())
+  customerName  String
+  customerEmail String
+  customerPhone String
+  customerId    String?
+  serviceId     String
+  staffId       String?
+  bookingDate   DateTime
+  bookingTime   String
+  status        String   @default("pending")
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
 
-  service Service @relation(fields: [serviceId], references: [id])
-  customerLoyalty CustomerLoyalty? @relation(fields: [customerLoyaltyId], references: [id])
+  // Relations
+  customer      Customer? @relation(fields: [customerId], references: [id])
+  service       Service   @relation(fields: [serviceId], references: [id])
+  staff         Staff?    @relation(fields: [staffId], references: [id])
 
   @@map("bookings")
 }
 
 model Feedback {
-  id            String   @id @default(cuid())
-  customerName  String
-  customerEmail String?
-  serviceRating Int      // 1-5
-  staffRating   Int?     // 1-5
-  overallRating Int      // 1-5
-  comments      String?
-  serviceUsed   String?
-  staffMember   String?
-  wouldRecommend Boolean @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id             String   @id @default(cuid())
+  customerName   String
+  customerEmail  String?
+  serviceRating  Int
+  staffRating    Int?
+  overallRating  Int
+  comments       String?
+  serviceUsed    String?
+  staffMember    String?
+  wouldRecommend Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
 
   @@map("feedback")
 }
 
+model Analytics {
+  id        String   @id @default(cuid())
+  type      String   // qr_scan, google_review_click, booking_created, feedback_submitted
+  metadata  String?
+  bookingId String?
+  feedbackId String?
+  timestamp DateTime @default(now())
+  
+  @@map("analytics")
+}
+
 model LoyaltyProgram {
-  id               String   @id @default(cuid())
-  name             String
-  description      String?
-  pointsPerBooking Int      @default(10)
-  pointsPerDollar  Float    @default(1.0)
-  rewardThreshold  Int      @default(100)
-  rewardAmount     Float    @default(10.0)
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  name                  String   @default("Hair Studio Rewards")
+  description           String?
+  pointsPerBooking      Int      @default(10)
+  pointsPerDollar       Int      @default(1)
+  rewardThreshold       Int      @default(100)
+  rewardAmount          Float    @default(10.0)
+  birthdayDiscountRate  Float    @default(20.0) // Birthday discount percentage
+  birthdayDiscountDays  Int      @default(7)    // Days before/after birthday
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   @@map("loyalty_programs")
 }
 
-model CustomerLoyalty {
-  id                  String          @id @default(cuid())
-  customerName        String
-  customerEmail       String          @unique
-  customerPhone       String?
-  points              Int             @default(0)
-  totalPointsRedeemed Int             @default(0)
-  rewardsRedeemed     Int             @default(0)
-  lastActivity        DateTime?
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
-  
-  bookings      Booking[]
-  pointsHistory PointsHistory[]
+model Customer {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String?
+  name          String
+  phone         String?
+  dateOfBirth   DateTime?
+  address       String?
+  isActive      Boolean  @default(true)
+  googleId      String?  @unique
+  googleProfile String?
+  avatar        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  @@map("customer_loyalty")
+  // Relations
+  bookings      Booking[]
+  loyalty       CustomerLoyalty?
+
+  @@map("customers")
 }
 
-model PointsHistory {
-  id               String          @id @default(cuid())
-  customerLoyaltyId String
-  points           Int
-  type             String          // 'earned' or 'redeemed'
-  source           String          // 'booking', 'purchase', 'reward', 'manual', 'other'
-  bookingId        String?
-  description      String?
-  createdAt        DateTime        @default(now())
+model CustomerLoyalty {
+  id             String   @id @default(cuid())
+  customerId     String   @unique
+  customerEmail  String   @unique
+  customerName   String
+  customerPhone  String?
+  totalPoints    Int      @default(0)
+  lifetimePoints Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  customerLoyalty  CustomerLoyalty @relation(fields: [customerLoyaltyId], references: [id], onDelete: Cascade)
+  // Relations
+  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
-  @@map("points_history")
+  @@map("customer_loyalty")
 }

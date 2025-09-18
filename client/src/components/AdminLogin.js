@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Container,
   Box,
@@ -13,27 +13,61 @@ import {
   IconButton
 } from '@mui/material';
 import { ArrowBack, Login, AdminPanelSettings } from '@mui/icons-material';
-import toast from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 import glamLogo from '../assets/glam-new-logo.png';
 // Google authentication temporarily disabled
 // import TraditionalGoogleButton from './TraditionalGoogleButton';
 
 const AdminLogin = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     identifier: '',
     password: ''
   });
+  
+  // Clear any old tokens on component mount (for token format migration)
+  useEffect(() => {
+    // Clear potentially incompatible tokens from previous versions
+    const token = localStorage.getItem('staffToken');
+    if (token) {
+      try {
+        // Try to decode the token to check if it has the new format
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (!payload.type || payload.type !== 'staff') {
+          console.log('Clearing old format token');
+          localStorage.removeItem('staffToken');
+          localStorage.removeItem('staff');
+        }
+      } catch (error) {
+        // Invalid token format, clear it
+        console.log('Clearing invalid token');
+        localStorage.removeItem('staffToken');
+        localStorage.removeItem('staff');
+      }
+    }
+  }, []);
 
-  const handleInputChange = (field, value) => {
+  // Check if already logged in on initial render
+  useEffect(() => {
+    const staffToken = localStorage.getItem('staffToken');
+    const staff = JSON.parse(localStorage.getItem('staff') || 'null');
+    
+    if (staffToken && staff) {
+      const from = location.state?.from?.pathname || '/admin/dashboard';
+      navigate(from, { replace: true });
+    }
+  }, [navigate, location.state?.from?.pathname]);
+
+  const handleInputChange = useCallback((field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
-  };
+  }, []);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
 
     if (!formData.identifier || !formData.password) {
@@ -43,66 +77,50 @@ const AdminLogin = () => {
 
     setLoading(true);
     try {
-      console.log('🚀 Starting staff login attempt...');
-      console.log('Form data:', { identifier: formData.identifier, password: '***' });
-
       // Use the staff authentication endpoint
-      const response = await fetch('/api/staff-auth/login', {
+      const response = await fetch('/api/staff/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          identifier: formData.identifier,
+          email: formData.identifier.trim(),
           password: formData.password
         }),
       });
-
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response ok:', response.ok);
-
-      if (!response.ok) {
-        let errorData;
-        try {
-          errorData = await response.json();
-          console.error('❌ Login error response:', {
-            status: response.status,
-            statusText: response.statusText,
-            errorData
-          });
-        } catch (parseError) {
-          const text = await response.text();
-          console.error('❌ Failed to parse error response:', {
-            status: response.status,
-            statusText: response.statusText,
-            responseText: text
-          });
-          throw new Error(`Login failed with status ${response.status}: ${response.statusText}`);
-        }
-        throw new Error(errorData.message || `Login failed with status ${response.status}`);
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        throw new Error('Invalid response from server');
       }
 
-      const data = await response.json();
-      console.log('✅ Staff login successful:', { hasToken: !!data.token, staff: data.staff });
+      if (!response.ok) {
+        throw new Error(data.message || `Login failed with status ${response.status}`);
+      }
 
-      // Store staff token and info in localStorage
+      // Store auth data and redirect
       localStorage.setItem('staffToken', data.token);
-      localStorage.setItem('staff', JSON.stringify(data.staff));
+      localStorage.setItem('staff', JSON.stringify(data.user));
       
       // Clear any existing user tokens to avoid conflicts
       localStorage.removeItem('token');
       localStorage.removeItem('user');
 
-      toast.success('Staff login successful!');
-      navigate('/admin/dashboard');
+      toast.success('Login successful!');
+      
+      // Use the redirect URL from location state or default to dashboard
+      const redirectTo = location.state?.from?.pathname || '/admin/dashboard';
+      navigate(redirectTo, { replace: true });
     } catch (error) {
-      console.error('❌ Login error:', error);
-      const message = error.message || 'Login failed';
-      toast.error(message);
+      console.error('Login error:', error);
+      toast.error(error.message || 'Login failed');
     } finally {
       setLoading(false);
     }
-  };
+  }, [formData.identifier, formData.password, location.state?.from?.pathname, navigate]);
 
   return (
     <Box

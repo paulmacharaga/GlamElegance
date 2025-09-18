@@ -20,6 +20,7 @@ const serviceRoutes = require('./routes/services');
 const staffRoutes = require('./routes/staff');
 const staffAuthRoutes = require('./routes/staff-auth');
 const loyaltyRoutes = require('./routes/loyalty');
+const customerRoutes = require('./routes/customers');
 const testRoutes = require('./routes/test');
 
 // Environment variables are already loaded by load-env.js
@@ -130,6 +131,7 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/staff-auth', staffAuthRoutes);
 app.use('/api/loyalty', loyaltyRoutes);
+app.use('/api/customers', customerRoutes);
 app.use('/api/test', testRoutes);
 
 // Health check endpoint

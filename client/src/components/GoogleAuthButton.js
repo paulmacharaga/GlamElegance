@@ -1,7 +1,6 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
-import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
@@ -12,28 +11,30 @@ const GoogleAuthButton = ({ onSuccess, buttonText = "Sign in with Google", varia
     try {
       console.log('Google credential response:', credentialResponse);
       
-      // Create API instance with proper base URL
-      const api = axios.create({
-        baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5001'
-      });
+      // Use fetch for the API call
+      const baseURL = process.env.REACT_APP_API_URL || window.location.origin;
       
       // Send the ID token to your backend
-      const response = await api.post('/api/auth/google-token', {
-        token: credentialResponse.credential
+      const response = await fetch(`${baseURL}/api/auth/google-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: credentialResponse.credential })
       });
       
+      const data = await response.json();
+      
       // Handle successful authentication
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+      if (data.token) {
+        localStorage.setItem('staffToken', data.token);
+        localStorage.setItem('staff', JSON.stringify(data.user));
+        
+        toast.success('Successfully signed in with Google');
         
         if (onSuccess) {
-          onSuccess(response.data);
+          onSuccess(data);
         } else {
           navigate('/admin/dashboard');
         }
-        
-        toast.success('Successfully signed in with Google');
       }
     } catch (error) {
       console.error('Google authentication error:', error);

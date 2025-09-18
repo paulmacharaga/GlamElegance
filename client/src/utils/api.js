@@ -30,7 +30,7 @@ try {
   api.interceptors.request.use(
     (config) => {
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('staffToken');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
         }

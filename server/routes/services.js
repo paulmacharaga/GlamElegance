@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const prisma = require('../lib/prisma');
-const auth = require('../middleware/auth');
+const staffAuth = require('../middleware/staffAuth');
 
 // Get all services
 router.get('/', async (req, res) => {
@@ -40,10 +40,10 @@ router.get('/:id', async (req, res) => {
 });
 
 // Create a new service (admin only)
-router.post('/', auth, async (req, res) => {
+router.post('/', staffAuth, async (req, res) => {
   try {
     // Check if user is admin
-    if (req.user.role !== 'admin') {
+    if (req.staff.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied. Admin only.' });
     }
     
@@ -72,10 +72,10 @@ router.post('/', auth, async (req, res) => {
 });
 
 // Update a service (admin only)
-router.put('/:id', auth, async (req, res) => {
+router.put('/:id', staffAuth, async (req, res) => {
   try {
     // Check if user is admin
-    if (req.user.role !== 'admin') {
+    if (req.staff.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied. Admin only.' });
     }
     
@@ -101,10 +101,10 @@ router.put('/:id', auth, async (req, res) => {
 });
 
 // Delete a service (admin only)
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', staffAuth, async (req, res) => {
   try {
     // Check if user is admin
-    if (req.user.role !== 'admin') {
+    if (req.staff.role !== 'admin') {
       return res.status(403).json({ message: 'Access denied. Admin only.' });
     }
     

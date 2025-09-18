@@ -1,29 +1,27 @@
-const jwt = require('jsonwebtoken');
 const prisma = require('../lib/prisma');
+const { verifyToken, extractTokenFromHeader } = require('../utils/tokenUtils');
 
 const staffAuth = async (req, res, next) => {
   try {
     const authHeader = req.header('Authorization');
-
-    if (!authHeader) {
-      return res.status(401).json({ message: 'No authorization header provided' });
+    
+    // Extract token from header
+    const token = extractTokenFromHeader(authHeader);
+    if (!token) {
+      return res.status(401).json({ message: 'No valid authorization token provided' });
     }
 
-    if (!authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ message: 'Invalid authorization header format' });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-
-    if (!token || token === 'null' || token === 'undefined') {
-      return res.status(401).json({ message: 'No token provided' });
-    }
-
-    // Verify JWT token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
-
+    // Verify and decode token
+    const decoded = verifyToken(token);
+    
+    // Validate token payload (backward compatible)
     if (!decoded.staffId) {
-      return res.status(401).json({ message: 'Invalid token payload' });
+      return res.status(401).json({ message: 'Invalid staff token - missing staffId' });
+    }
+    
+    // Check token type if present (new format), but allow old format without type
+    if (decoded.type && decoded.type !== 'staff') {
+      return res.status(401).json({ message: 'Invalid staff token - wrong type' });
     }
 
     const staff = await prisma.staff.findUnique({
@@ -49,6 +47,7 @@ const staffAuth = async (req, res, next) => {
 
     // Attach staff to request object
     req.staff = staff;
+    req.user = { ...staff, staffId: staff.id }; // Legacy compatibility
     next();
   } catch (error) {
     console.error('Authentication error:', error);

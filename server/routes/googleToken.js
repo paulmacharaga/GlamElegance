@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
-const User = require('../models/User');
+const prisma = require('../lib/prisma');
 
 // Verify Google ID token and authenticate user
 router.post('/google-token', async (req, res) => {
@@ -24,75 +24,74 @@ router.post('/google-token', async (req, res) => {
       return res.status(400).json({ message: 'Invalid Google token' });
     }
     
-    // Check if user exists with this Google ID
-    let user = await User.findOne({ googleId });
+    // Check if staff exists with this Google ID
+    let staff = await prisma.staff.findFirst({ 
+      where: { googleId } 
+    });
     
-    // If no user with this Google ID, try to find by email
-    if (!user && email) {
-      user = await User.findOne({ email });
-      
-      // If user exists with this email, link the Google account
-      if (user) {
-        user.googleId = googleId;
-        user.googleProfile = { name, email };
-        if (picture) user.avatar = picture;
-        await user.save();
-      }
-    }
-    
-    // If still no user, create a new one
-    if (!user) {
-      // Check if there are any existing users
-      const existingUsers = await User.countDocuments();
-      
-      // Determine role - first user is admin, others are staff
-      const role = existingUsers === 0 ? 'admin' : 'staff';
-      
-      // Create a unique username if needed
-      let username = email.split('@')[0];
-      const usernameExists = await User.findOne({ username });
-      if (usernameExists) {
-        // Add random suffix to make username unique
-        username = `${username}${Math.floor(Math.random() * 10000)}`;  
-      }
-      
-      // Create new user
-      user = new User({
-        username,
-        email,
-        name: name || username,
-        googleId,
-        googleProfile: { name, email },
-        avatar: picture,
-        role,
-        isActive: true
+    // If no staff with this Google ID, try to find by email
+    if (!staff && email) {
+      staff = await prisma.staff.findUnique({ 
+        where: { email } 
       });
       
-      await user.save();
+      // If staff exists with this email, link the Google account
+      if (staff) {
+        staff = await prisma.staff.update({
+          where: { id: staff.id },
+          data: {
+            googleId,
+            googleProfile: JSON.stringify({ name, email }),
+            avatar: picture || staff.avatar
+          }
+        });
+      }
     }
     
-    // Check if user is active
-    if (!user.isActive) {
+    // If still no staff, create a new one
+    if (!staff) {
+      // Check if there are any existing staff members
+      const existingStaff = await prisma.staff.count();
+      
+      // Determine role - first staff is admin, others are staff
+      const role = existingStaff === 0 ? 'admin' : 'staff';
+      
+      // Create new staff member
+      staff = await prisma.staff.create({
+        data: {
+          name: name || email.split('@')[0],
+          email,
+          googleId,
+          googleProfile: JSON.stringify({ name, email }),
+          avatar: picture,
+          role,
+          isActive: true,
+          password: '' // No password needed for Google OAuth users
+        }
+      });
+    }
+    
+    // Check if staff is active
+    if (!staff.isActive) {
       return res.status(403).json({ message: 'Your account has been deactivated' });
     }
     
     // Generate JWT token
     const authToken = jwt.sign(
-      { userId: user._id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { staffId: staff.id },
+      process.env.JWT_SECRET || 'fallback_secret',
+      { expiresIn: '8h' }
     );
     
-    // Return user info and token
+    // Return staff info and token (using 'user' key for compatibility)
     res.json({
       token: authToken,
       user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        avatar: user.avatar
+        id: staff.id,
+        name: staff.name,
+        email: staff.email,
+        role: staff.role,
+        avatar: staff.avatar
       }
     });
   } catch (error) {

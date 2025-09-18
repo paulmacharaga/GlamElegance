@@ -1,7 +1,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
 const prisma = require('../lib/prisma');
-const auth = require('../middleware/auth');
+const staffAuth = require('../middleware/staffAuth');
 
 const router = express.Router();
 
@@ -69,7 +69,7 @@ router.post('/', [
 });
 
 // Get all feedback (admin/staff only)
-router.get('/', auth, async (req, res) => {
+router.get('/', staffAuth, async (req, res) => {
   try {
     const { page = 1, limit = 10, rating, service } = req.query;
 
@@ -103,7 +103,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Get feedback statistics
-router.get('/stats', auth, async (req, res) => {
+router.get('/stats', staffAuth, async (req, res) => {
   try {
     const stats = await Feedback.aggregate([
       {

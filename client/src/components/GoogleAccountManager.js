@@ -34,13 +34,13 @@ const GoogleAccountManager = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('staffToken');
         if (!token) {
           setLoading(false);
           return;
         }
 
-        const response = await axios.get('/api/auth/me', {
+        const response = await axios.get('/api/staff-auth/me', {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -59,7 +59,9 @@ const GoogleAccountManager = () => {
   const handleUnlinkGoogle = async () => {
     try {
       setLoading(true);
-      const response = await axios.post('/api/auth/unlink-google');
+      const response = await axios.post('/api/staff-auth/unlink-google', {}, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('staffToken')}` }
+      });
       
       setUser(response.data.user);
       toast.success('Google account unlinked successfully');
