@@ -313,6 +313,34 @@ router.post('/admin/setup', auth, async (req, res) => {
   }
 });
 
+// Debug endpoint to check token
+router.get('/admin/debug-token', async (req, res) => {
+  try {
+    const authHeader = req.header('Authorization');
+    const token = authHeader ? authHeader.replace('Bearer ', '') : null;
+
+    res.json({
+      success: true,
+      debug: {
+        hasAuthHeader: !!authHeader,
+        authHeaderFormat: authHeader ? authHeader.substring(0, 20) + '...' : null,
+        tokenLength: token ? token.length : 0,
+        tokenStart: token ? token.substring(0, 20) + '...' : null,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message,
+      debug: {
+        hasAuthHeader: !!req.header('Authorization'),
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
 // Admin CRUD endpoints for categories
 router.post('/admin/categories', auth, async (req, res) => {
   try {

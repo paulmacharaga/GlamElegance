@@ -65,6 +65,37 @@ const AdminHierarchicalServices = () => {
     fetchServices();
   }, []);
 
+  // Utility function to get valid token
+  const getValidToken = () => {
+    const token = localStorage.getItem('token') || localStorage.getItem('staffToken');
+
+    if (!token || token === 'null' || token === 'undefined') {
+      toast.error('Please login again to continue.');
+      return null;
+    }
+
+    // Check if token is expired by trying to decode it
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const currentTime = Date.now() / 1000;
+
+      if (payload.exp && payload.exp < currentTime) {
+        toast.error('Session expired. Please login again.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('staffToken');
+        return null;
+      }
+
+      return token;
+    } catch (error) {
+      console.error('Invalid token format:', error);
+      toast.error('Invalid session. Please login again.');
+      localStorage.removeItem('token');
+      localStorage.removeItem('staffToken');
+      return null;
+    }
+  };
+
   const fetchCategories = async () => {
     try {
       setLoading(true);
@@ -88,9 +119,14 @@ const AdminHierarchicalServices = () => {
 
   const fetchServices = async () => {
     try {
+      const token = getValidToken();
+      if (!token) {
+        return; // Skip if no valid token
+      }
+
       const response = await fetch('/api/hierarchical-services/admin/all-services', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('staffToken')}`
+          'Authorization': `Bearer ${token}`
         }
       });
       const data = await response.json();
@@ -126,11 +162,15 @@ const AdminHierarchicalServices = () => {
 
   const saveCategoryDialog = async () => {
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('staffToken');
-      const url = categoryDialog.isEdit 
+      const token = getValidToken();
+      if (!token) {
+        return; // Error already shown by getValidToken
+      }
+
+      const url = categoryDialog.isEdit
         ? `/api/hierarchical-services/admin/categories/${categoryDialog.category.id}`
         : '/api/hierarchical-services/admin/categories';
-      
+
       const response = await fetch(url, {
         method: categoryDialog.isEdit ? 'PUT' : 'POST',
         headers: {
@@ -139,19 +179,25 @@ const AdminHierarchicalServices = () => {
         },
         body: JSON.stringify(categoryForm)
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         toast.success(categoryDialog.isEdit ? 'Category updated!' : 'Category created!');
         setCategoryDialog({ open: false, category: null, isEdit: false });
         fetchCategories();
       } else {
+        console.error('API Error:', data);
         toast.error(data.message || 'Failed to save category');
+
+        // If authentication error, suggest re-login
+        if (data.message && data.message.includes('token')) {
+          toast.error('Authentication expired. Please logout and login again.');
+        }
       }
     } catch (error) {
       console.error('Error saving category:', error);
-      toast.error('Failed to save category');
+      toast.error('Failed to save category: ' + error.message);
     }
   };
 
@@ -161,7 +207,11 @@ const AdminHierarchicalServices = () => {
     }
     
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('staffToken');
+      const token = getValidToken();
+      if (!token) {
+        return;
+      }
+
       const response = await fetch(`/api/hierarchical-services/admin/categories/${categoryId}`, {
         method: 'DELETE',
         headers: {
@@ -211,7 +261,10 @@ const AdminHierarchicalServices = () => {
 
   const saveServiceDialog = async () => {
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('staffToken');
+      const token = getValidToken();
+      if (!token) {
+        return;
+      }
       const url = serviceDialog.isEdit 
         ? `/api/hierarchical-services/admin/services/${serviceDialog.service.id}`
         : '/api/hierarchical-services/admin/services';
@@ -251,7 +304,11 @@ const AdminHierarchicalServices = () => {
     }
     
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('staffToken');
+      const token = getValidToken();
+      if (!token) {
+        return;
+      }
+
       const response = await fetch(`/api/hierarchical-services/admin/services/${serviceId}`, {
         method: 'DELETE',
         headers: {
