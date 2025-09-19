@@ -94,19 +94,7 @@ model Staff {
   @@map("staff")
 }
 
-model Customer {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  phone     String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  bookings Booking[]
-
-  @@map("customers")
-}
+// Customer model moved to end of file with more complete definition
 
 model Booking {
   id            String   @id @default(cuid())
