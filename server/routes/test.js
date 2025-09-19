@@ -604,64 +604,64 @@ router.get('/hierarchical-test', async (req, res) => {
 // Create hierarchical services tables with proper SQL
 router.post('/migrate-hierarchical', async (req, res) => {
   try {
-    // Create service_categories table
+    // Create service_categories table (matching Prisma schema)
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS service_categories (
         id TEXT PRIMARY KEY,
         name TEXT UNIQUE NOT NULL,
         description TEXT,
         icon TEXT,
-        display_order INTEGER DEFAULT 0,
-        is_active BOOLEAN DEFAULT true,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        "displayOrder" INTEGER DEFAULT 0,
+        "isActive" BOOLEAN DEFAULT true,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
-    // Create hierarchical_services table
+    // Create services table (matching Prisma schema)
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS hierarchical_services (
+      CREATE TABLE IF NOT EXISTS services (
         id TEXT PRIMARY KEY,
-        category_id TEXT NOT NULL,
+        "categoryId" TEXT NOT NULL,
         name TEXT NOT NULL,
         description TEXT,
-        base_price DECIMAL(10,2) NOT NULL,
-        base_duration INTEGER NOT NULL,
-        is_active BOOLEAN DEFAULT true,
-        display_order INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (category_id) REFERENCES service_categories(id)
+        "basePrice" DECIMAL(10,2) NOT NULL,
+        "baseDuration" INTEGER NOT NULL,
+        "isActive" BOOLEAN DEFAULT true,
+        "displayOrder" INTEGER DEFAULT 0,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ("categoryId") REFERENCES service_categories(id)
       )
     `);
 
-    // Create service_variants table
+    // Create service_variants table (matching Prisma schema)
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS service_variants (
         id TEXT PRIMARY KEY,
-        service_id TEXT NOT NULL,
+        "serviceId" TEXT NOT NULL,
         name TEXT NOT NULL,
         description TEXT,
         type TEXT NOT NULL,
-        price_modifier DECIMAL(10,2) NOT NULL,
-        duration_modifier INTEGER DEFAULT 0,
-        is_active BOOLEAN DEFAULT true,
-        display_order INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (service_id) REFERENCES hierarchical_services(id)
+        "priceModifier" DECIMAL(10,2) NOT NULL,
+        "durationModifier" INTEGER DEFAULT 0,
+        "isActive" BOOLEAN DEFAULT true,
+        "displayOrder" INTEGER DEFAULT 0,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ("serviceId") REFERENCES services(id)
       )
     `);
 
-    // Create booking_service_variants table
+    // Create booking_service_variants table (matching Prisma schema)
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS booking_service_variants (
         id TEXT PRIMARY KEY,
-        booking_id TEXT NOT NULL,
-        variant_id TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (booking_id) REFERENCES bookings(id),
-        FOREIGN KEY (variant_id) REFERENCES service_variants(id)
+        "bookingId" TEXT NOT NULL,
+        "variantId" TEXT NOT NULL,
+        "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY ("bookingId") REFERENCES bookings(id),
+        FOREIGN KEY ("variantId") REFERENCES service_variants(id)
       )
     `);
 
