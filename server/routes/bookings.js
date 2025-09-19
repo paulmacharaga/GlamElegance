@@ -49,8 +49,10 @@ router.post('/', upload.fields([
   body('customerEmail').isEmail().withMessage('Valid email is required'),
   body('customerPhone').notEmpty().withMessage('Phone number is required'),
   body('serviceId').notEmpty().withMessage('Service ID is required'),
-  body('appointmentDate').isISO8601().withMessage('Valid date is required'),
-  body('appointmentTime').notEmpty().withMessage('Appointment time is required')
+  body('appointmentDate').optional().isISO8601().withMessage('Valid date is required'),
+  body('bookingDate').optional().notEmpty().withMessage('Valid date is required'),
+  body('appointmentTime').optional().notEmpty().withMessage('Appointment time is required'),
+  body('bookingTime').optional().notEmpty().withMessage('Appointment time is required')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -63,17 +65,36 @@ router.post('/', upload.fields([
       customerEmail,
       customerPhone,
       serviceId,
+      service, // Legacy field name
       variantIds = [],
       bookingDate,
+      appointmentDate,
       bookingTime,
+      appointmentTime,
       totalDuration,
       notes,
       joinLoyalty
     } = req.body;
 
+    // Handle field name variations for backward compatibility
+    const finalServiceId = serviceId || service;
+    const finalBookingDate = bookingDate || appointmentDate;
+    const finalBookingTime = bookingTime || appointmentTime;
+
+    // Validate required fields after field mapping
+    if (!finalServiceId) {
+      return res.status(400).json({ message: 'Service ID is required' });
+    }
+    if (!finalBookingDate) {
+      return res.status(400).json({ message: 'Booking date is required' });
+    }
+    if (!finalBookingTime) {
+      return res.status(400).json({ message: 'Booking time is required' });
+    }
+
     // Check if service exists and is active
     const serviceDoc = await prisma.service.findUnique({
-      where: { id: serviceId, isActive: true },
+      where: { id: finalServiceId, isActive: true },
       include: {
         category: true,
         variants: {
@@ -155,8 +176,8 @@ router.post('/', upload.fields([
           customerEmail,
           customerPhone,
           serviceId: serviceDoc.id,
-          bookingDate: new Date(bookingDate),
-          bookingTime: bookingTime,
+          bookingDate: new Date(finalBookingDate),
+          bookingTime: finalBookingTime,
           status: 'pending',
           notes: notes || '',
           totalPrice: null, // Will be set by staff when confirming
@@ -247,8 +268,8 @@ router.post('/', upload.fields([
       customerName,
       customerEmail,
       service: serviceDoc.name,
-      appointmentDate,
-      appointmentTime,
+      appointmentDate: finalBookingDate,
+      appointmentTime: finalBookingTime,
       notes: notes || '',
       joinLoyalty: joinLoyalty === 'true' || joinLoyalty === true,
       loyaltyPointsEarned: 0
