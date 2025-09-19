@@ -187,9 +187,8 @@ router.post('/', upload.fields([
           status: 'pending',
           notes: notes || '',
           totalPrice: null, // Will be set by staff when confirming
-          totalDuration: totalDuration || calculatedDuration,
-          inspirationImages: inspirationImages.length > 0 ? inspirationImages : undefined,
-          currentHairImages: Object.keys(currentHairImages).length > 0 ? currentHairImages : undefined
+          totalDuration: totalDuration || calculatedDuration
+          // Note: inspirationImages and currentHairImages are handled separately if needed
         }
       });
 
