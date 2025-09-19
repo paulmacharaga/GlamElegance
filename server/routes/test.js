@@ -988,4 +988,55 @@ router.post('/add-missing-booking-fields', async (req, res) => {
   }
 });
 
+// Check if booking table has all required fields
+router.post('/check-booking-schema', async (req, res) => {
+  try {
+    // Try to query the bookings table structure
+    const result = await prisma.$queryRaw`
+      SELECT column_name, data_type, is_nullable, column_default
+      FROM information_schema.columns
+      WHERE table_name = 'bookings'
+      AND table_schema = 'public'
+      ORDER BY ordinal_position
+    `;
+
+    const columns = result.map(col => ({
+      name: col.column_name,
+      type: col.data_type,
+      nullable: col.is_nullable === 'YES',
+      default: col.column_default
+    }));
+
+    // Check for specific fields we need
+    const requiredFields = [
+      'totalPrice',
+      'inspirationImages',
+      'currentHairImages',
+      'joinLoyalty'
+    ];
+
+    const missingFields = requiredFields.filter(field =>
+      !columns.some(col => col.name === field)
+    );
+
+    res.json({
+      success: true,
+      columns,
+      missingFields,
+      hasMissingFields: missingFields.length > 0,
+      message: missingFields.length > 0
+        ? `Missing fields: ${missingFields.join(', ')}`
+        : 'All required fields present'
+    });
+
+  } catch (error) {
+    console.error('Error checking booking schema:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check booking schema',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
