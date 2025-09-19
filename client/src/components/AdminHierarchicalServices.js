@@ -1,15 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Card,
-  CardContent,
   Typography,
   Button,
-  Grid,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Chip,
   Alert,
   CircularProgress,
   Dialog,
@@ -23,27 +16,53 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Icon
+  TextField,
+  IconButton,
+  Tabs,
+  Tab,
+  Chip,
+  Grid
 } from '@mui/material';
 import {
-  ExpandMore,
   Add,
   Edit,
   Delete,
   Refresh,
-  PlayArrow
+  Category,
+  Build
 } from '@mui/icons-material';
+import toast from 'react-hot-toast';
 
 const AdminHierarchicalServices = () => {
   const [categories, setCategories] = useState([]);
+  const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-  const [setupDialog, setSetupDialog] = useState(false);
-  const [setupLoading, setSetupLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
+  
+  // Category management state
+  const [categoryDialog, setCategoryDialog] = useState({ open: false, category: null, isEdit: false });
+  const [categoryForm, setCategoryForm] = useState({
+    name: '',
+    description: '',
+    icon: '',
+    displayOrder: 0
+  });
+  
+  // Service management state
+  const [serviceDialog, setServiceDialog] = useState({ open: false, service: null, isEdit: false });
+  const [serviceForm, setServiceForm] = useState({
+    name: '',
+    description: '',
+    categoryId: '',
+    basePrice: '',
+    baseDuration: '',
+    displayOrder: 0
+  });
 
   useEffect(() => {
     fetchCategories();
+    fetchServices();
   }, []);
 
   const fetchCategories = async () => {
@@ -51,16 +70,11 @@ const AdminHierarchicalServices = () => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch('/api/hierarchical-services/admin/categories', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      
+      const response = await fetch('/api/hierarchical-services/categories');
       const data = await response.json();
       
       if (data.success) {
-        setCategories(data.categories);
+        setCategories(data.categories || []);
       } else {
         setError('Failed to load service categories');
       }
@@ -72,53 +86,192 @@ const AdminHierarchicalServices = () => {
     }
   };
 
-  const handleSetupServices = async () => {
+  const fetchServices = async () => {
     try {
-      setSetupLoading(true);
-      setError(null);
-      
-      const response = await fetch('/api/hierarchical-services/admin/setup', {
-        method: 'POST',
+      const response = await fetch('/api/hierarchical-services/admin/all-services', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('staffToken')}`
+        }
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        setServices(data.services || []);
+      }
+    } catch (error) {
+      console.error('Error fetching services:', error);
+    }
+  };
+
+  // Category CRUD operations
+  const openCategoryDialog = (category = null) => {
+    if (category) {
+      setCategoryForm({
+        name: category.name,
+        description: category.description || '',
+        icon: category.icon || '',
+        displayOrder: category.displayOrder || 0
+      });
+      setCategoryDialog({ open: true, category, isEdit: true });
+    } else {
+      setCategoryForm({
+        name: '',
+        description: '',
+        icon: '',
+        displayOrder: categories.length
+      });
+      setCategoryDialog({ open: true, category: null, isEdit: false });
+    }
+  };
+
+  const saveCategoryDialog = async () => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('staffToken');
+      const url = categoryDialog.isEdit 
+        ? `/api/hierarchical-services/admin/categories/${categoryDialog.category.id}`
+        : '/api/hierarchical-services/admin/categories';
+      
+      const response = await fetch(url, {
+        method: categoryDialog.isEdit ? 'PUT' : 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(categoryForm)
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success(categoryDialog.isEdit ? 'Category updated!' : 'Category created!');
+        setCategoryDialog({ open: false, category: null, isEdit: false });
+        fetchCategories();
+      } else {
+        toast.error(data.message || 'Failed to save category');
+      }
+    } catch (error) {
+      console.error('Error saving category:', error);
+      toast.error('Failed to save category');
+    }
+  };
+
+  const deleteCategory = async (categoryId) => {
+    if (!window.confirm('Are you sure you want to delete this category? This will also delete all services in this category.')) {
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('staffToken');
+      const response = await fetch(`/api/hierarchical-services/admin/categories/${categoryId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
         }
       });
       
       const data = await response.json();
       
       if (data.success) {
-        setSuccess('Hierarchical service structure setup completed successfully!');
-        setSetupDialog(false);
-        fetchCategories(); // Refresh the data
+        toast.success('Category deleted!');
+        fetchCategories();
+        fetchServices();
       } else {
-        setError(data.message || 'Failed to setup hierarchical services');
+        toast.error(data.message || 'Failed to delete category');
       }
     } catch (error) {
-      console.error('Error setting up services:', error);
-      setError('Failed to setup hierarchical services');
-    } finally {
-      setSetupLoading(false);
+      console.error('Error deleting category:', error);
+      toast.error('Failed to delete category');
     }
   };
 
-  const getVariantTypeColor = (type) => {
-    switch (type) {
-      case 'duration': return 'primary';
-      case 'intensity': return 'secondary';
-      case 'style': return 'success';
-      case 'addon': return 'warning';
-      case 'length': return 'info';
-      default: return 'default';
+  // Service CRUD operations
+  const openServiceDialog = (service = null) => {
+    if (service) {
+      setServiceForm({
+        name: service.name,
+        description: service.description || '',
+        categoryId: service.categoryId,
+        basePrice: service.basePrice.toString(),
+        baseDuration: service.baseDuration.toString(),
+        displayOrder: service.displayOrder || 0
+      });
+      setServiceDialog({ open: true, service, isEdit: true });
+    } else {
+      setServiceForm({
+        name: '',
+        description: '',
+        categoryId: categories.length > 0 ? categories[0].id : '',
+        basePrice: '',
+        baseDuration: '',
+        displayOrder: services.length
+      });
+      setServiceDialog({ open: true, service: null, isEdit: false });
     }
   };
 
-  const formatPrice = (price) => {
-    return price >= 0 ? `+$${price}` : `-$${Math.abs(price)}`;
+  const saveServiceDialog = async () => {
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('staffToken');
+      const url = serviceDialog.isEdit 
+        ? `/api/hierarchical-services/admin/services/${serviceDialog.service.id}`
+        : '/api/hierarchical-services/admin/services';
+      
+      const response = await fetch(url, {
+        method: serviceDialog.isEdit ? 'PUT' : 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ...serviceForm,
+          basePrice: parseFloat(serviceForm.basePrice),
+          baseDuration: parseInt(serviceForm.baseDuration)
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success(serviceDialog.isEdit ? 'Service updated!' : 'Service created!');
+        setServiceDialog({ open: false, service: null, isEdit: false });
+        fetchServices();
+        fetchCategories(); // Refresh to update service counts
+      } else {
+        toast.error(data.message || 'Failed to save service');
+      }
+    } catch (error) {
+      console.error('Error saving service:', error);
+      toast.error('Failed to save service');
+    }
   };
 
-  const formatDuration = (duration) => {
-    return duration >= 0 ? `+${duration}min` : `-${Math.abs(duration)}min`;
+  const deleteService = async (serviceId) => {
+    if (!window.confirm('Are you sure you want to delete this service?')) {
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token') || localStorage.getItem('staffToken');
+      const response = await fetch(`/api/hierarchical-services/admin/services/${serviceId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success('Service deleted!');
+        fetchServices();
+        fetchCategories();
+      } else {
+        toast.error(data.message || 'Failed to delete service');
+      }
+    } catch (error) {
+      console.error('Error deleting service:', error);
+      toast.error('Failed to delete service');
+    }
   };
 
   if (loading && categories.length === 0) {
@@ -133,27 +286,19 @@ const AdminHierarchicalServices = () => {
     <Box sx={{ p: 3 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4" gutterBottom>
-          Hierarchical Services Management
+          Service Management
         </Typography>
-        <Box>
-          <Button
-            variant="outlined"
-            startIcon={<Refresh />}
-            onClick={fetchCategories}
-            sx={{ mr: 2 }}
-            disabled={loading}
-          >
-            Refresh
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<PlayArrow />}
-            onClick={() => setSetupDialog(true)}
-            color="primary"
-          >
-            Setup Services
-          </Button>
-        </Box>
+        <Button
+          variant="outlined"
+          startIcon={<Refresh />}
+          onClick={() => {
+            fetchCategories();
+            fetchServices();
+          }}
+          disabled={loading}
+        >
+          Refresh
+        </Button>
       </Box>
 
       {error && (
@@ -162,183 +307,309 @@ const AdminHierarchicalServices = () => {
         </Alert>
       )}
 
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
-          {success}
-        </Alert>
-      )}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+          <Tab icon={<Category />} label="Categories" />
+          <Tab icon={<Build />} label="Services" />
+        </Tabs>
+      </Box>
 
-      {categories.length === 0 && !loading ? (
-        <Card>
-          <CardContent sx={{ textAlign: 'center', py: 4 }}>
-            <Typography variant="h6" gutterBottom>
-              No Hierarchical Services Found
-            </Typography>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              Set up the hierarchical service structure to get started.
-            </Typography>
+      {/* Categories Tab */}
+      {activeTab === 0 && (
+        <Box>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Typography variant="h6">Service Categories</Typography>
             <Button
               variant="contained"
-              startIcon={<PlayArrow />}
-              onClick={() => setSetupDialog(true)}
-              sx={{ mt: 2 }}
+              startIcon={<Add />}
+              onClick={() => openCategoryDialog()}
             >
-              Setup Services Now
+              Add Category
             </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Grid container spacing={3}>
-          {categories.map((category) => (
-            <Grid item xs={12} key={category.id}>
-              <Card>
-                <CardContent>
-                  <Box display="flex" alignItems="center" mb={2}>
-                    {category.icon && (
-                      <Icon sx={{ mr: 2, color: 'primary.main' }}>
-                        {category.icon}
-                      </Icon>
-                    )}
-                    <Box flexGrow={1}>
-                      <Typography variant="h5" gutterBottom>
-                        {category.name}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {category.description}
-                      </Typography>
-                    </Box>
-                    <Chip
-                      label={`${category.services.length} services`}
-                      color="primary"
-                      variant="outlined"
-                    />
-                  </Box>
+          </Box>
 
-                  {category.services.map((service) => (
-                    <Accordion key={service.id} sx={{ mb: 1 }}>
-                      <AccordionSummary expandIcon={<ExpandMore />}>
-                        <Box display="flex" alignItems="center" width="100%">
-                          <Box flexGrow={1}>
-                            <Typography variant="h6">
-                              {service.name}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {service.description}
-                            </Typography>
-                          </Box>
-                          <Box textAlign="right" mr={2}>
-                            <Typography variant="h6" color="primary">
-                              ${service.basePrice}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {service.baseDuration} min
-                            </Typography>
-                          </Box>
-                          <Chip
-                            label={`${service.variants.length} variants`}
-                            size="small"
-                            color="secondary"
-                          />
-                        </Box>
-                      </AccordionSummary>
-                      <AccordionDetails>
-                        {service.variants.length > 0 ? (
-                          <TableContainer component={Paper} variant="outlined">
-                            <Table size="small">
-                              <TableHead>
-                                <TableRow>
-                                  <TableCell>Variant Name</TableCell>
-                                  <TableCell>Type</TableCell>
-                                  <TableCell>Price Modifier</TableCell>
-                                  <TableCell>Duration Modifier</TableCell>
-                                  <TableCell>Description</TableCell>
-                                </TableRow>
-                              </TableHead>
-                              <TableBody>
-                                {service.variants.map((variant) => (
-                                  <TableRow key={variant.id}>
-                                    <TableCell>
-                                      <Typography variant="body2" fontWeight="medium">
-                                        {variant.name}
-                                      </Typography>
-                                    </TableCell>
-                                    <TableCell>
-                                      <Chip
-                                        label={variant.type}
-                                        size="small"
-                                        color={getVariantTypeColor(variant.type)}
-                                        variant="outlined"
-                                      />
-                                    </TableCell>
-                                    <TableCell>
-                                      <Typography
-                                        variant="body2"
-                                        color={variant.priceModifier >= 0 ? 'success.main' : 'error.main'}
-                                      >
-                                        {variant.priceModifier !== 0 ? formatPrice(variant.priceModifier) : '$0'}
-                                      </Typography>
-                                    </TableCell>
-                                    <TableCell>
-                                      <Typography
-                                        variant="body2"
-                                        color={variant.durationModifier >= 0 ? 'primary.main' : 'warning.main'}
-                                      >
-                                        {variant.durationModifier !== 0 ? formatDuration(variant.durationModifier) : '0min'}
-                                      </Typography>
-                                    </TableCell>
-                                    <TableCell>
-                                      <Typography variant="body2" color="text.secondary">
-                                        {variant.description || '-'}
-                                      </Typography>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </TableContainer>
-                        ) : (
-                          <Typography variant="body2" color="text.secondary">
-                            No variants configured for this service.
-                          </Typography>
-                        )}
-                      </AccordionDetails>
-                    </Accordion>
-                  ))}
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Description</TableCell>
+                  <TableCell>Services Count</TableCell>
+                  <TableCell>Order</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {categories.map((category) => (
+                  <TableRow key={category.id}>
+                    <TableCell>
+                      <Box display="flex" alignItems="center">
+                        {category.icon && <span style={{ marginRight: 8 }}>{category.icon}</span>}
+                        <Typography fontWeight="medium">{category.name}</Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>{category.description}</TableCell>
+                    <TableCell>
+                      <Chip label={category._count?.services || 0} size="small" />
+                    </TableCell>
+                    <TableCell>{category.displayOrder}</TableCell>
+                    <TableCell>
+                      <IconButton onClick={() => openCategoryDialog(category)} size="small">
+                        <Edit />
+                      </IconButton>
+                      <IconButton 
+                        onClick={() => deleteCategory(category.id)} 
+                        size="small"
+                        color="error"
+                      >
+                        <Delete />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          {categories.length === 0 && (
+            <Box textAlign="center" py={4}>
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                No categories found
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => openCategoryDialog()}
+              >
+                Create Your First Category
+              </Button>
+            </Box>
+          )}
+        </Box>
       )}
 
-      {/* Setup Confirmation Dialog */}
-      <Dialog open={setupDialog} onClose={() => setSetupDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Setup Hierarchical Services</DialogTitle>
+      {/* Services Tab */}
+      {activeTab === 1 && (
+        <Box>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Typography variant="h6">Services</Typography>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => openServiceDialog()}
+              disabled={categories.length === 0}
+            >
+              Add Service
+            </Button>
+          </Box>
+
+          {categories.length === 0 ? (
+            <Alert severity="info">
+              Please create at least one category before adding services.
+            </Alert>
+          ) : (
+            <TableContainer component={Paper}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Name</TableCell>
+                    <TableCell>Category</TableCell>
+                    <TableCell>Price</TableCell>
+                    <TableCell>Duration</TableCell>
+                    <TableCell>Order</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {services.map((service) => (
+                    <TableRow key={service.id}>
+                      <TableCell>
+                        <Typography fontWeight="medium">{service.name}</Typography>
+                        {service.description && (
+                          <Typography variant="body2" color="text.secondary">
+                            {service.description}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      <TableCell>{service.category?.name}</TableCell>
+                      <TableCell>${service.basePrice}</TableCell>
+                      <TableCell>{service.baseDuration} min</TableCell>
+                      <TableCell>{service.displayOrder}</TableCell>
+                      <TableCell>
+                        <IconButton onClick={() => openServiceDialog(service)} size="small">
+                          <Edit />
+                        </IconButton>
+                        <IconButton
+                          onClick={() => deleteService(service.id)}
+                          size="small"
+                          color="error"
+                        >
+                          <Delete />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+
+          {services.length === 0 && categories.length > 0 && (
+            <Box textAlign="center" py={4}>
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                No services found
+              </Typography>
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => openServiceDialog()}
+              >
+                Create Your First Service
+              </Button>
+            </Box>
+          )}
+        </Box>
+      )}
+
+      {/* Category Dialog */}
+      <Dialog open={categoryDialog.open} onClose={() => setCategoryDialog({ open: false, category: null, isEdit: false })} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {categoryDialog.isEdit ? 'Edit Category' : 'Add New Category'}
+        </DialogTitle>
         <DialogContent>
-          <Typography variant="body1" gutterBottom>
-            This will create a comprehensive hierarchical service structure with:
-          </Typography>
-          <ul>
-            <li>4 main service categories (Hair, Nails, Facial, Massage)</li>
-            <li>Multiple services within each category</li>
-            <li>Customization options for each service</li>
-            <li>Pricing and duration variants</li>
-          </ul>
-          <Alert severity="warning" sx={{ mt: 2 }}>
-            This will replace any existing service data. Make sure to backup if needed.
-          </Alert>
+          <TextField
+            fullWidth
+            label="Category Name"
+            value={categoryForm.name}
+            onChange={(e) => setCategoryForm(prev => ({ ...prev, name: e.target.value }))}
+            margin="normal"
+            required
+          />
+          <TextField
+            fullWidth
+            label="Description"
+            value={categoryForm.description}
+            onChange={(e) => setCategoryForm(prev => ({ ...prev, description: e.target.value }))}
+            margin="normal"
+            multiline
+            rows={2}
+          />
+          <TextField
+            fullWidth
+            label="Icon (emoji or text)"
+            value={categoryForm.icon}
+            onChange={(e) => setCategoryForm(prev => ({ ...prev, icon: e.target.value }))}
+            margin="normal"
+            placeholder="💇‍♀️ or ✂️"
+          />
+          <TextField
+            fullWidth
+            label="Display Order"
+            type="number"
+            value={categoryForm.displayOrder}
+            onChange={(e) => setCategoryForm(prev => ({ ...prev, displayOrder: parseInt(e.target.value) || 0 }))}
+            margin="normal"
+          />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSetupDialog(false)} disabled={setupLoading}>
+          <Button onClick={() => setCategoryDialog({ open: false, category: null, isEdit: false })}>
             Cancel
           </Button>
           <Button
-            onClick={handleSetupServices}
+            onClick={saveCategoryDialog}
             variant="contained"
-            disabled={setupLoading}
-            startIcon={setupLoading ? <CircularProgress size={20} /> : <PlayArrow />}
+            disabled={!categoryForm.name.trim()}
           >
-            {setupLoading ? 'Setting up...' : 'Setup Services'}
+            {categoryDialog.isEdit ? 'Update' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Service Dialog */}
+      <Dialog open={serviceDialog.open} onClose={() => setServiceDialog({ open: false, service: null, isEdit: false })} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {serviceDialog.isEdit ? 'Edit Service' : 'Add New Service'}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            fullWidth
+            label="Service Name"
+            value={serviceForm.name}
+            onChange={(e) => setServiceForm(prev => ({ ...prev, name: e.target.value }))}
+            margin="normal"
+            required
+          />
+          <TextField
+            fullWidth
+            label="Description"
+            value={serviceForm.description}
+            onChange={(e) => setServiceForm(prev => ({ ...prev, description: e.target.value }))}
+            margin="normal"
+            multiline
+            rows={2}
+          />
+          <TextField
+            fullWidth
+            select
+            label="Category"
+            value={serviceForm.categoryId}
+            onChange={(e) => setServiceForm(prev => ({ ...prev, categoryId: e.target.value }))}
+            margin="normal"
+            required
+            SelectProps={{ native: true }}
+          >
+            <option value="">Select Category</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </TextField>
+          <Grid container spacing={2}>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Base Price ($)"
+                type="number"
+                value={serviceForm.basePrice}
+                onChange={(e) => setServiceForm(prev => ({ ...prev, basePrice: e.target.value }))}
+                margin="normal"
+                required
+                inputProps={{ min: 0, step: 0.01 }}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Duration (minutes)"
+                type="number"
+                value={serviceForm.baseDuration}
+                onChange={(e) => setServiceForm(prev => ({ ...prev, baseDuration: e.target.value }))}
+                margin="normal"
+                required
+                inputProps={{ min: 1, step: 1 }}
+              />
+            </Grid>
+          </Grid>
+          <TextField
+            fullWidth
+            label="Display Order"
+            type="number"
+            value={serviceForm.displayOrder}
+            onChange={(e) => setServiceForm(prev => ({ ...prev, displayOrder: parseInt(e.target.value) || 0 }))}
+            margin="normal"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setServiceDialog({ open: false, service: null, isEdit: false })}>
+            Cancel
+          </Button>
+          <Button
+            onClick={saveServiceDialog}
+            variant="contained"
+            disabled={!serviceForm.name.trim() || !serviceForm.categoryId || !serviceForm.basePrice || !serviceForm.baseDuration}
+          >
+            {serviceDialog.isEdit ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
       </Dialog>
