@@ -121,7 +121,7 @@ router.post('/', upload.fields([
       validVariants = await prisma.serviceVariant.findMany({
         where: {
           id: { in: variantIds },
-          serviceId: serviceId,
+          serviceId: finalServiceId,
           isActive: true
         }
       });
@@ -141,8 +141,8 @@ router.post('/', upload.fields([
     // Check for existing booking at same time
     const existingBooking = await prisma.booking.findFirst({
       where: {
-        bookingDate: new Date(bookingDate),
-        bookingTime: bookingTime,
+        bookingDate: new Date(finalBookingDate),
+        bookingTime: finalBookingTime,
         status: { in: ['pending', 'confirmed'] }
       }
     });
@@ -187,8 +187,10 @@ router.post('/', upload.fields([
           status: 'pending',
           notes: notes || '',
           totalPrice: null, // Will be set by staff when confirming
-          totalDuration: totalDuration || calculatedDuration
-          // Note: inspirationImages and currentHairImages are handled separately if needed
+          totalDuration: totalDuration || calculatedDuration,
+          inspirationImages: inspirationImages.length > 0 ? inspirationImages : [],
+          currentHairImages: Object.keys(currentHairImages).length > 0 ? currentHairImages : null,
+          joinLoyalty: joinLoyalty === 'true' || joinLoyalty === true
         }
       });
 

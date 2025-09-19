@@ -85,6 +85,8 @@ model Staff {
   googleId      String?  @unique
   googleProfile String?
   avatar        String?
+  resetToken    String?  // Password reset token
+  resetTokenExpiry DateTime? // Password reset token expiry
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -110,6 +112,14 @@ model Booking {
   notes         String?
   totalPrice    Float?   // Set by staff when confirming booking
   totalDuration Int?     // Calculated total duration including variants
+
+  // Image storage for booking inspiration and current hair photos
+  inspirationImages String[] @default([])  // Array of image URLs/paths
+  currentHairImages Json?                  // JSON object with front/back/top images
+
+  // Loyalty program opt-in
+  joinLoyalty   Boolean  @default(false)  // Customer opted to join loyalty program
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

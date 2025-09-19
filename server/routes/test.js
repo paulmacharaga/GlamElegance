@@ -947,4 +947,45 @@ router.post('/make-service-fields-optional', async (req, res) => {
   }
 });
 
+// Add missing fields to bookings and staff tables
+router.post('/add-missing-booking-fields', async (req, res) => {
+  try {
+    // Add missing fields to bookings table
+    await prisma.$executeRaw`
+      ALTER TABLE bookings
+      ADD COLUMN IF NOT EXISTS "inspirationImages" TEXT[] DEFAULT '{}',
+      ADD COLUMN IF NOT EXISTS "currentHairImages" JSONB,
+      ADD COLUMN IF NOT EXISTS "joinLoyalty" BOOLEAN DEFAULT false
+    `;
+
+    // Add missing fields to staff table for password reset
+    await prisma.$executeRaw`
+      ALTER TABLE staff
+      ADD COLUMN IF NOT EXISTS "resetToken" TEXT,
+      ADD COLUMN IF NOT EXISTS "resetTokenExpiry" TIMESTAMP
+    `;
+
+    res.json({
+      success: true,
+      message: 'Missing fields added successfully',
+      changes: [
+        'bookings.inspirationImages (TEXT[])',
+        'bookings.currentHairImages (JSONB)',
+        'bookings.joinLoyalty (BOOLEAN)',
+        'staff.resetToken (TEXT)',
+        'staff.resetTokenExpiry (TIMESTAMP)'
+      ],
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error adding missing fields:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add missing fields',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
