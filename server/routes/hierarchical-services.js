@@ -471,8 +471,8 @@ router.post('/admin/services', auth, async (req, res) => {
         name,
         description,
         categoryId,
-        basePrice: basePrice ? parseFloat(basePrice) : null,
-        baseDuration: baseDuration ? parseInt(baseDuration) : null,
+        basePrice: basePrice ? parseFloat(basePrice) : 0,
+        baseDuration: baseDuration ? parseInt(baseDuration) : 0,
         displayOrder: displayOrder || 0,
         isActive: true
       },
@@ -512,8 +512,8 @@ router.put('/admin/services/:id', auth, async (req, res) => {
         name,
         description,
         categoryId,
-        basePrice: basePrice ? parseFloat(basePrice) : null,
-        baseDuration: baseDuration ? parseInt(baseDuration) : null,
+        basePrice: basePrice ? parseFloat(basePrice) : 0,
+        baseDuration: baseDuration ? parseInt(baseDuration) : 0,
         displayOrder: displayOrder || 0
       },
       include: {

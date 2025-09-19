@@ -241,8 +241,8 @@ const AdminHierarchicalServices = () => {
         name: service.name,
         description: service.description || '',
         categoryId: service.categoryId,
-        basePrice: service.basePrice.toString(),
-        baseDuration: service.baseDuration.toString(),
+        basePrice: service.basePrice > 0 ? service.basePrice.toString() : '',
+        baseDuration: service.baseDuration > 0 ? service.baseDuration.toString() : '',
         displayOrder: service.displayOrder || 0
       });
       setServiceDialog({ open: true, service, isEdit: true });
@@ -277,8 +277,8 @@ const AdminHierarchicalServices = () => {
         },
         body: JSON.stringify({
           ...serviceForm,
-          basePrice: serviceForm.basePrice ? parseFloat(serviceForm.basePrice) : null,
-          baseDuration: serviceForm.baseDuration ? parseInt(serviceForm.baseDuration) : null
+          basePrice: serviceForm.basePrice ? parseFloat(serviceForm.basePrice) : 0,
+          baseDuration: serviceForm.baseDuration ? parseInt(serviceForm.baseDuration) : 0
         })
       });
       
@@ -489,8 +489,8 @@ const AdminHierarchicalServices = () => {
                         )}
                       </TableCell>
                       <TableCell>{service.category?.name}</TableCell>
-                      <TableCell>{service.basePrice ? `$${service.basePrice}` : 'Variable'}</TableCell>
-                      <TableCell>{service.baseDuration ? `${service.baseDuration} min` : 'Variable'}</TableCell>
+                      <TableCell>{service.basePrice > 0 ? `$${service.basePrice}` : 'Variable'}</TableCell>
+                      <TableCell>{service.baseDuration > 0 ? `${service.baseDuration} min` : 'Variable'}</TableCell>
                       <TableCell>{service.displayOrder}</TableCell>
                       <TableCell>
                         <IconButton onClick={() => openServiceDialog(service)} size="small">
