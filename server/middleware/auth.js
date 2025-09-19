@@ -22,34 +22,83 @@ const auth = async (req, res, next) => {
     // Verify JWT token
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret');
 
-    if (!decoded.userId) {
-      return res.status(401).json({ message: 'Invalid token payload' });
-    }
+    let user = null;
+    let userDoc = null;
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        name: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true
+    // Check if it's a staff token (new format)
+    if (decoded.staffId) {
+      const staff = await prisma.staff.findUnique({
+        where: { id: decoded.staffId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+
+      if (!staff) {
+        return res.status(401).json({ message: 'Staff member not found' });
       }
-    });
 
-    if (!user) {
-      return res.status(401).json({ message: 'User not found' });
+      if (!staff.isActive) {
+        return res.status(401).json({ message: 'Staff account is inactive' });
+      }
+
+      // Map staff to user format for compatibility
+      user = {
+        userId: staff.id,
+        staffId: staff.id,
+        role: staff.role,
+        type: 'staff'
+      };
+      userDoc = {
+        id: staff.id,
+        username: staff.name,
+        email: staff.email,
+        name: staff.name,
+        role: staff.role,
+        isActive: staff.isActive,
+        createdAt: staff.createdAt,
+        updatedAt: staff.updatedAt
+      };
+    }
+    // Check if it's a user token (legacy format)
+    else if (decoded.userId) {
+      const userRecord = await prisma.user.findUnique({
+        where: { id: decoded.userId },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true
+        }
+      });
+
+      if (!userRecord) {
+        return res.status(401).json({ message: 'User not found' });
+      }
+
+      if (!userRecord.isActive) {
+        return res.status(401).json({ message: 'User account is inactive' });
+      }
+
+      user = decoded;
+      userDoc = userRecord;
+    }
+    else {
+      return res.status(401).json({ message: 'Invalid token payload - missing userId or staffId' });
     }
 
-    if (!user.isActive) {
-      return res.status(401).json({ message: 'User account is inactive' });
-    }
-
-    req.user = decoded;
-    req.userDoc = user;
+    req.user = user;
+    req.userDoc = userDoc;
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);
