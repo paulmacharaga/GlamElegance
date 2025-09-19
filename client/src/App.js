@@ -6,7 +6,7 @@ import { Toaster } from 'react-hot-toast';
 
 // Components
 import LandingPage from './components/LandingPage';
-import BookingForm from './components/BookingForm';
+import EnhancedBookingForm from './components/EnhancedBookingForm';
 import FeedbackForm from './components/FeedbackForm';
 import AdminLogin from './components/AdminLogin';
 import AdminDashboard from './components/AdminDashboard';
@@ -94,7 +94,7 @@ function App() {
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/scan" element={<LandingPage />} />
-              <Route path="/book" element={<BookingForm />} />
+              <Route path="/book" element={<EnhancedBookingForm />} />
               <Route path="/feedback" element={<FeedbackForm />} />
               <Route path="/admin" element={<AdminLogin />} />
               

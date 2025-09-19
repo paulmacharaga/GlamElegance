@@ -27,7 +27,7 @@ import {
   Logout
 } from '@mui/icons-material';
 // GoogleAccountManager import removed as it's not used
-import ServiceManagement from './ServiceManagement';
+import AdminHierarchicalServices from './AdminHierarchicalServices';
 import StaffManagement from './StaffManagement';
 import AdminBookingCalendar from './AdminBookingCalendar';
 import LoyaltyManagement from './LoyaltyManagement';
@@ -424,7 +424,7 @@ const AdminDashboard = () => {
               </Box>
             )}
             {activeTab === 1 && <AdminBookingCalendar />}
-            {activeTab === 2 && <ServiceManagement />}
+            {activeTab === 2 && <AdminHierarchicalServices />}
             {activeTab === 3 && <StaffManagement />}
             {activeTab === 4 && <CustomerManagement />}
             {activeTab === 5 && <LoyaltyManagement />}
