@@ -2,20 +2,37 @@ const prisma = require('../lib/prisma');
 const { verifyToken, extractTokenFromHeader } = require('../utils/tokenUtils');
 
 const staffAuth = async (req, res, next) => {
+  console.log('🔐 staffAuth middleware called');
   try {
     const authHeader = req.header('Authorization');
+    console.log('🔐 Auth header:', authHeader ? 'Present' : 'Missing');
     
     // Extract token from header
     const token = extractTokenFromHeader(authHeader);
+    console.log('🔐 Token extracted:', token ? 'Valid token format' : 'Invalid token format');
+    
     if (!token) {
+      console.log('🔐 Authentication failed: No valid token');
       return res.status(401).json({ message: 'No valid authorization token provided' });
     }
 
     // Verify and decode token
-    const decoded = verifyToken(token);
+    let decoded;
+    try {
+      decoded = verifyToken(token);
+      console.log('🔐 Token verified successfully. Payload:', {
+        staffId: decoded.staffId || 'missing',
+        type: decoded.type || 'not specified',
+        exp: decoded.exp ? new Date(decoded.exp * 1000).toISOString() : 'missing'
+      });
+    } catch (verifyError) {
+      console.log('🔐 Token verification failed:', verifyError.message);
+      return res.status(401).json({ message: `Invalid token: ${verifyError.message}` });
+    }
     
     // Validate token payload (backward compatible)
     if (!decoded.staffId) {
+      console.log('🔐 Invalid token: missing staffId');
       return res.status(401).json({ message: 'Invalid staff token - missing staffId' });
     }
     
@@ -24,6 +41,7 @@ const staffAuth = async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid staff token - wrong type' });
     }
 
+    console.log('🔐 Looking up staff member with ID:', decoded.staffId);
     const staff = await prisma.staff.findUnique({
       where: { id: decoded.staffId },
       select: {
@@ -38,10 +56,20 @@ const staffAuth = async (req, res, next) => {
     });
 
     if (!staff) {
+      console.log('🔐 Staff member not found with ID:', decoded.staffId);
       return res.status(401).json({ message: 'Staff member not found' });
     }
 
+    console.log('🔐 Staff member found:', {
+      id: staff.id,
+      name: staff.name,
+      email: staff.email,
+      role: staff.role,
+      isActive: staff.isActive
+    });
+
     if (!staff.isActive) {
+      console.log('🔐 Staff account is inactive');
       return res.status(401).json({ message: 'Staff account is inactive' });
     }
 

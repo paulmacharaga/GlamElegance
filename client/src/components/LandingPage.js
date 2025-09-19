@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -21,43 +21,53 @@ import {
   Palette,
   Person
 } from '@mui/icons-material';
-import api from '../utils/api';
+// import api from '../utils/api'; // Uncomment when tracking is re-enabled
 
 const LandingPage = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
+  // QR scan tracking functionality is temporarily disabled
+  // Uncomment this when QR codes are implemented and ready to use
+  /*
   useEffect(() => {
     // Track QR scan when landing page loads
     const trackQRScan = async () => {
       try {
-        await api.post('/api/qr/scan');
+        console.log('Tracking QR scan...');
+        const response = await api.post('/api/qr/scan');
+        console.log('QR scan tracking response:', response.data);
+        return response.data;
       } catch (error) {
         console.error('Failed to track QR scan:', error);
+        // Don't let tracking errors affect the user experience
+        return { success: false, error: error.message };
       }
     };
 
     trackQRScan();
   }, []);
+  */
 
-  const handleGoogleReview = async () => {
+  const handleGoogleReview = () => {
+    // Open Google review page
+    const reviewUrl = 'https://g.page/r/CZk1YXkdm5XEEB0/review';
+    window.open(reviewUrl, '_blank');
+    
+    // Google review click tracking is temporarily disabled
+    // Uncomment this when tracking is needed
+    /*
     try {
       // Track Google review click
-      await api.post('/api/qr/google-review-click');
-      
-      // Use the Google Place ID from environment variables
-      const placeId = process.env.REACT_APP_GOOGLE_PLACE_ID || 'ChIJN1t_tDeuEmsRUsoyG83frY4';
-      const googleReviewUrl = `https://search.google.com/local/writereview?placeid=${placeId}`;
-      
-      window.open(googleReviewUrl, '_blank');
+      console.log('Tracking Google review click...');
+      const response = await api.post('/api/qr/google-review-click');
+      console.log('Google review click tracking response:', response.data);
     } catch (error) {
       console.error('Failed to track Google review click:', error);
-      // Still open the review page even if tracking fails
-      const placeId = process.env.REACT_APP_GOOGLE_PLACE_ID || 'ChIJN1t_tDeuEmsRUsoyG83frY4';
-      const googleReviewUrl = `https://search.google.com/local/writereview?placeid=${placeId}`;
-      window.open(googleReviewUrl, '_blank');
+      // Analytics errors shouldn't affect user experience
     }
+    */
   };
 
   const actionCards = [

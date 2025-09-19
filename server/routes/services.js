@@ -14,7 +14,15 @@ router.get('/', async (req, res) => {
         isActive: true
       }
     });
-    res.json(services);
+    
+    // Map baseDuration to duration and basePrice to price for client compatibility
+    const transformedServices = services.map(service => ({
+      ...service,
+      duration: service.baseDuration,
+      price: service.basePrice
+    }));
+    
+    res.json(transformedServices);
   } catch (error) {
     console.error('Error fetching services:', error);
     res.status(500).json({ message: 'Server error' });
@@ -32,7 +40,14 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Service not found' });
     }
     
-    res.json(service);
+    // Map baseDuration to duration and basePrice to price for client compatibility
+    const transformedService = {
+      ...service,
+      duration: service.baseDuration,
+      price: service.basePrice
+    };
+    
+    res.json(transformedService);
   } catch (error) {
     console.error('Error fetching service:', error);
     res.status(500).json({ message: 'Server error' });
@@ -59,12 +74,19 @@ router.post('/', staffAuth, async (req, res) => {
       data: {
         name,
         description,
-        duration,
-        price
+        baseDuration: duration, // Map duration to baseDuration for database
+        basePrice: price // Map price to basePrice for database
       }
     });
     
-    res.status(201).json(newService);
+    // Map baseDuration to duration and basePrice to price for client compatibility
+    const transformedService = {
+      ...newService,
+      duration: newService.baseDuration,
+      price: newService.basePrice
+    };
+    
+    res.status(201).json(transformedService);
   } catch (error) {
     console.error('Error creating service:', error);
     res.status(500).json({ message: 'Server error' });
@@ -87,13 +109,20 @@ router.put('/:id', staffAuth, async (req, res) => {
       data: {
         name, 
         description, 
-        duration, 
-        price,
+        baseDuration: duration, // Map duration to baseDuration for database
+        basePrice: price, // Map price to basePrice for database
         isActive
       }
     });
     
-    res.json(updatedService);
+    // Map baseDuration to duration and basePrice to price for client compatibility
+    const transformedService = {
+      ...updatedService,
+      duration: updatedService.baseDuration,
+      price: updatedService.basePrice
+    };
+    
+    res.json(transformedService);
   } catch (error) {
     console.error('Error updating service:', error);
     res.status(500).json({ message: 'Server error' });

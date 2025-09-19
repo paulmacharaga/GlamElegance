@@ -40,18 +40,65 @@ const router = express.Router();
 
 // Middleware to handle both JSON and FormData
 const handleBookingData = (req, res, next) => {
+  console.log('handleBookingData middleware called');
+  console.log('Content-Type:', req.headers['content-type']);
+  
+  // Create uploads directory if it doesn't exist
+  const uploadDir = 'uploads/bookings';
+  if (!fs.existsSync(uploadDir)) {
+    try {
+      fs.mkdirSync(uploadDir, { recursive: true });
+      console.log(`Created upload directory: ${uploadDir}`);
+    } catch (dirError) {
+      console.error('Error creating upload directory:', dirError);
+      return res.status(500).json({
+        success: false,
+        message: 'Server configuration error',
+        error: 'UPLOAD_DIR_ERROR'
+      });
+    }
+  }
+  
   // Check if it's JSON request
   if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
+    console.log('Processing as JSON request');
     // For JSON requests, skip multer
     return next();
   } else {
-    // For FormData requests, use multer
-    return upload.fields([
+    console.log('Processing as FormData request');
+    // For FormData requests, use multer with error handling
+    const multerUpload = upload.fields([
       { name: 'inspirationImages', maxCount: 10 },
       { name: 'currentHair_front', maxCount: 1 },
       { name: 'currentHair_back', maxCount: 1 },
       { name: 'currentHair_top', maxCount: 1 }
-    ])(req, res, next);
+    ]);
+    
+    return multerUpload(req, res, (err) => {
+      if (err) {
+        console.error('Multer error:', err);
+        if (err instanceof multer.MulterError) {
+          // A Multer error occurred when uploading
+          return res.status(422).json({
+            success: false,
+            message: 'File upload error',
+            error: err.message,
+            code: err.code
+          });
+        } else {
+          // An unknown error occurred
+          return res.status(500).json({
+            success: false,
+            message: 'Unknown error during file upload',
+            error: err.message
+          });
+        }
+      }
+      
+      // If we get here, the upload was successful
+      console.log('Files processed successfully:', req.files ? Object.keys(req.files).length : 0, 'file fields');
+      next();
+    });
   }
 };
 
@@ -67,14 +114,45 @@ router.post('/', handleBookingData, [
   body('bookingTime').optional().notEmpty().withMessage('Appointment time is required')
 ], async (req, res) => {
   const requestId = `booking_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const startTime = Date.now();
+
+  // Extract request data first to make variables available throughout the function
+  const {
+    customerName,
+    customerEmail,
+    customerPhone,
+    serviceId,
+    service, // Legacy field name
+    variantIds = [],
+    bookingDate,
+    appointmentDate,
+    bookingTime,
+    appointmentTime,
+    totalDuration,
+    notes,
+    joinLoyalty
+  } = req.body;
+
+  // Handle field name variations for backward compatibility
+  const finalServiceId = serviceId || service;
+  const finalBookingDate = bookingDate || appointmentDate;
+  const finalBookingTime = bookingTime || appointmentTime;
+
+  // Declare variables that will be used across multiple try-catch blocks
+  let serviceDoc = null;
 
   try {
     console.log(`🚀 [${requestId}] Booking creation started`);
+    console.log(`🚀 [${requestId}] Request body:`, req.body);
 
-    // Validation check
+    // Validation 
+    console.log(`🔍 [${requestId}] Request body:`, req.body);
+    console.log(`🔍 [${requestId}] Request files:`, req.files ? Object.keys(req.files) : 'none');
+    console.log(`🔍 [${requestId}] Content-Type:`, req.headers['content-type']);
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log(`❌ [${requestId}] Validation failed`);
+      console.log(`❌ [${requestId}] Validation failed:`, errors.array());
 
       return res.status(400).json({
         success: false,
@@ -88,29 +166,14 @@ router.post('/', handleBookingData, [
       });
     }
 
-    // Extract request data
+    // Log processing request data
     console.log(`🔍 [${requestId}] Processing request data...`);
-
-    const {
-      customerName,
-      customerEmail,
-      customerPhone,
-      serviceId,
-      service, // Legacy field name
-      variantIds = [],
-      bookingDate,
-      appointmentDate,
-      bookingTime,
-      appointmentTime,
-      totalDuration,
-      notes,
-      joinLoyalty
-    } = req.body;
-
-    // Handle field name variations for backward compatibility
-    const finalServiceId = serviceId || service;
-    const finalBookingDate = bookingDate || appointmentDate;
-    const finalBookingTime = bookingTime || appointmentTime;
+    
+    console.log(`🔍 [${requestId}] Variables defined:`, {
+      finalServiceId,
+      finalBookingDate,
+      finalBookingTime
+    });
 
     console.log(`🔄 [${requestId}] Field mapping:`, {
       serviceId: finalServiceId ? 'OK' : 'MISSING',
@@ -156,7 +219,7 @@ router.post('/', handleBookingData, [
     console.log(`📋 [${requestId}] Looking for service ID: "${finalServiceId}"`);
 
     // Check if service exists and is active
-    const serviceDoc = await prisma.service.findUnique({
+    serviceDoc = await prisma.service.findUnique({
       where: { id: finalServiceId, isActive: true },
       include: {
         category: true,
@@ -212,7 +275,8 @@ router.post('/', handleBookingData, [
     console.log(`🔍 [${requestId}] Validating service variants...`);
 
     // Validate selected variants and calculate total duration
-    let calculatedDuration = serviceDoc.baseDuration;
+    // Use default duration of 60 minutes if baseDuration is null
+    let calculatedDuration = serviceDoc.baseDuration || 60;
     let validVariants = [];
 
     console.log(`📊 [${requestId}] Variant Processing:`, {
@@ -344,12 +408,14 @@ router.post('/', handleBookingData, [
     });
   }
 
+  // Initialize image variables at broader scope
+  let inspirationImages = [];
+  let currentHairImages = {};
+
   try {
     console.log(`🖼️ [${requestId}] Processing uploaded images...`);
 
     // Process uploaded images (for FormData requests)
-    const inspirationImages = [];
-    const currentHairImages = {};
 
     if (req.files) {
       console.log(`📎 [${requestId}] Files detected, processing...`);
@@ -410,7 +476,7 @@ router.post('/', handleBookingData, [
       status: 'pending',
       notes: notes || '',
       totalPrice: null, // Will be set by staff when confirming
-      totalDuration: totalDuration || calculatedDuration,
+      totalDuration: null, // Will be set by staff when confirming
       inspirationImages: inspirationImages.length > 0 ? inspirationImages : [],
       currentHairImages: Object.keys(currentHairImages).length > 0 ? currentHairImages : null,
       joinLoyalty: joinLoyalty === 'true' || joinLoyalty === true
@@ -562,14 +628,9 @@ router.post('/', handleBookingData, [
       errorName: error.name,
       errorCode: error.code,
       stack: error.stack,
-      prismaError: error.meta || null,
-      processingTimeMs: processingTime,
-      timestamp: new Date().toISOString(),
-      requestBody: req.body,
-      files: req.files ? Object.keys(req.files) : 'none'
+      processingTime: `${processingTime}ms`
     });
 
-    // Categorize error types for better client responses
     let statusCode = 500;
     let errorType = 'INTERNAL_SERVER_ERROR';
     let userMessage = 'An unexpected error occurred while creating your booking';
@@ -613,6 +674,11 @@ router.post('/', handleBookingData, [
 
 // Get all bookings (admin/staff only)
 router.get('/', staffAuth, async (req, res) => {
+  console.log('🔍 GET /api/bookings - Auth info:', {
+    staffId: req.staff?.id,
+    staffName: req.staff?.name,
+    staffRole: req.staff?.role
+  });
   try {
     console.log('📅 GET /api/bookings - Query params:', req.query);
     const { page = 1, limit = 10, status, date, startDate, endDate, stylist } = req.query;
@@ -662,8 +728,8 @@ router.get('/', staffAuth, async (req, res) => {
             id: true,
             name: true,
             description: true,
-            duration: true,
-            price: true,
+            baseDuration: true,
+            basePrice: true,
             isActive: true
           }
         },
@@ -689,8 +755,23 @@ router.get('/', staffAuth, async (req, res) => {
 
     const total = await prisma.booking.count({ where });
 
+    // Transform bookings to map baseDuration to duration and basePrice to price for client compatibility
+    const transformedBookings = bookings.map(booking => {
+      if (booking.service) {
+        return {
+          ...booking,
+          service: {
+            ...booking.service,
+            duration: booking.service.baseDuration,
+            price: booking.service.basePrice
+          }
+        };
+      }
+      return booking;
+    });
+
     // Ensure dates are properly serialized
-    const serializedBookings = bookings.map(booking => ({
+    const serializedBookings = transformedBookings.map(booking => ({
       ...booking,
       bookingDate: booking.bookingDate.toISOString(),
       createdAt: booking.createdAt.toISOString(),
@@ -700,6 +781,7 @@ router.get('/', staffAuth, async (req, res) => {
     console.log('✅ Bookings query successful - Found:', serializedBookings.length, 'bookings');
     
     res.json({
+      success: true,
       bookings: serializedBookings,
       totalPages: usePagination ? Math.ceil(total / parseInt(limit)) : 1,
       currentPage: usePagination ? parseInt(page) : 1,
@@ -1019,9 +1101,10 @@ router.get('/available-slots', async (req, res) => {
   }
 });
 
-// Staff: Confirm booking with pricing
+// Staff: Confirm booking with pricing and duration
 router.patch('/:id/confirm', staffAuth, [
   body('totalPrice').isFloat({ min: 0 }).withMessage('Valid price is required'),
+  body('totalDuration').optional().isInt({ min: 15 }).withMessage('Duration must be at least 15 minutes'),
   body('notes').optional().isString()
 ], async (req, res) => {
   try {
@@ -1034,7 +1117,7 @@ router.patch('/:id/confirm', staffAuth, [
     }
 
     const { id } = req.params;
-    const { totalPrice, notes } = req.body;
+    const { totalPrice, totalDuration, notes } = req.body;
 
     // Find the booking
     const booking = await prisma.booking.findUnique({
@@ -1067,14 +1150,21 @@ router.patch('/:id/confirm', staffAuth, [
       });
     }
 
-    // Update booking with price and confirm
+    // Update booking with price, duration and confirm
+    const updateData = {
+      totalPrice: parseFloat(totalPrice),
+      status: 'confirmed',
+      notes: notes || booking.notes
+    };
+    
+    // Add duration if provided
+    if (totalDuration) {
+      updateData.totalDuration = parseInt(totalDuration);
+    }
+    
     const updatedBooking = await prisma.booking.update({
       where: { id },
-      data: {
-        totalPrice: parseFloat(totalPrice),
-        status: 'confirmed',
-        notes: notes || booking.notes
-      },
+      data: updateData,
       include: {
         service: {
           include: {
@@ -1104,18 +1194,52 @@ router.patch('/:id/confirm', staffAuth, [
     });
 
   } catch (error) {
-    console.error('Error confirming booking:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to confirm booking',
-      error: error.message
+    console.error(`💥 [${req.requestId}] ERROR:`, {
+      message: error.message,
+      stack: error.stack,
+      code: error.code,
+      name: error.name
     });
+    
+    // Handle specific error types
+    if (error.code === 'P2002') {
+      // Prisma unique constraint violation
+      return res.status(400).json({
+        success: false,
+        message: 'A booking with this information already exists',
+        error: 'DUPLICATE_BOOKING',
+        requestId: req.requestId
+      });
+    } else if (error.code === 'P2003') {
+      // Prisma foreign key constraint violation
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid reference to another record (e.g., service ID)',
+        error: 'INVALID_REFERENCE',
+        requestId: req.requestId
+      });
+    } else if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: error.message || 'Validation error',
+        error: 'VALIDATION_ERROR',
+        requestId: req.requestId
+      });
+    } else {
+      // Generic server error
+      return res.status(500).json({
+        success: false,
+        message: 'Server error while creating booking',
+        error: error.message || 'UNKNOWN_ERROR',
+        requestId: req.requestId
+      });
+    }
   }
 });
 
 // Helper function to send booking confirmation email
 async function sendBookingConfirmationEmail(booking) {
-  const nodemailer = require('nodemailer');
+  // ... (rest of the code remains the same)
 
   // Skip email if not configured
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
@@ -1124,7 +1248,7 @@ async function sendBookingConfirmationEmail(booking) {
   }
 
   // Configure email transporter
-  const transporter = nodemailer.createTransporter({
+  const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER,

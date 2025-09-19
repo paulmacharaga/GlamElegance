@@ -78,13 +78,13 @@ const AdminLogin = () => {
     setLoading(true);
     try {
       // Use the staff authentication endpoint
-      const response = await fetch('/api/staff/login', {
+      const response = await fetch('/api/staff-auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: formData.identifier.trim(),
+          identifier: formData.identifier.trim(),
           password: formData.password
         }),
       });
@@ -98,12 +98,17 @@ const AdminLogin = () => {
       }
 
       if (!response.ok) {
+        console.error('Login failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          data
+        });
         throw new Error(data.message || `Login failed with status ${response.status}`);
       }
 
       // Store auth data and redirect
       localStorage.setItem('staffToken', data.token);
-      localStorage.setItem('staff', JSON.stringify(data.user));
+      localStorage.setItem('staff', JSON.stringify(data.staff));
       
       // Clear any existing user tokens to avoid conflicts
       localStorage.removeItem('token');

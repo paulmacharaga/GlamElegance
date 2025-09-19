@@ -58,23 +58,42 @@ const StaffBookingManagement = () => {
       setLoading(true);
       setError(null);
       
-      const token = localStorage.getItem('token') || localStorage.getItem('staffToken');
+      const token = localStorage.getItem('staffToken');
+      console.log('Using token:', token ? 'Token exists' : 'No token found');
+      
+      if (!token) {
+        setError('Authentication token missing. Please log in again.');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('Fetching bookings from API...');
       const response = await fetch('/api/bookings', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
       
+      console.log('API response status:', response.status);
+      
       const data = await response.json();
+      console.log('API response data:', data);
       
       if (data.success) {
+        console.log(`Loaded ${data.bookings?.length || 0} bookings`);
         setBookings(data.bookings || []);
       } else {
-        setError('Failed to load bookings');
+        console.error('API returned error:', data.message || 'Unknown error');
+        setError(data.message || 'Failed to load bookings');
       }
     } catch (error) {
       console.error('Error fetching bookings:', error);
-      setError('Failed to load bookings');
+      console.error('Error details:', { 
+        name: error.name, 
+        message: error.message, 
+        stack: error.stack 
+      });
+      setError(`Failed to load bookings: ${error.message}`);
     } finally {
       setLoading(false);
     }
