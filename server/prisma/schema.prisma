@@ -120,7 +120,7 @@ model Booking {
   bookingTime   String
   status        String   @default("pending")
   notes         String?
-  totalPrice    Float?   // Calculated total price including variants
+  totalPrice    Float?   // Set by staff when confirming booking
   totalDuration Int?     // Calculated total duration including variants
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

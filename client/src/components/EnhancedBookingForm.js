@@ -136,8 +136,8 @@ const EnhancedBookingForm = () => {
         bookingDate: dayjs(formData.appointmentDate).format('YYYY-MM-DD'),
         bookingTime: formData.appointmentTime,
         notes: formData.notes,
-        totalPrice: selectedService.totalPrice,
         totalDuration: selectedService.totalDuration
+        // No totalPrice - staff will set pricing
       };
 
       const response = await fetch('/api/bookings', {
@@ -246,11 +246,11 @@ const EnhancedBookingForm = () => {
                           )}
                         </Box>
                         <Box textAlign="right">
-                          <Typography variant="h6" color="primary">
-                            ${selectedService.totalPrice}
+                          <Typography variant="body1" color="text.secondary">
+                            Duration: {selectedService.totalDuration} minutes
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
-                            {selectedService.totalDuration} minutes
+                            Pricing will be confirmed by staff
                           </Typography>
                         </Box>
                       </Box>
@@ -444,11 +444,11 @@ const EnhancedBookingForm = () => {
                             )}
                           </Grid>
                           <Grid item xs={12} sm={4} textAlign="right">
-                            <Typography variant="h6" color="primary">
-                              ${selectedService.totalPrice}
+                            <Typography variant="body1" color="text.secondary">
+                              Duration: {selectedService.totalDuration} minutes
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                              {selectedService.totalDuration} minutes
+                              Final pricing will be confirmed by our staff
                             </Typography>
                           </Grid>
                         </Grid>
@@ -525,8 +525,8 @@ const EnhancedBookingForm = () => {
                       <Divider sx={{ my: 2 }} />
 
                       <Box display="flex" justifyContent="space-between" alignItems="center">
-                        <Typography variant="h5" fontWeight="medium">
-                          Total: ${selectedService.totalPrice}
+                        <Typography variant="h6" fontWeight="medium" color="text.secondary">
+                          Our staff will contact you with pricing and confirmation details
                         </Typography>
                         <Button
                           variant="contained"
@@ -535,7 +535,7 @@ const EnhancedBookingForm = () => {
                           disabled={loading}
                           startIcon={loading ? <CircularProgress size={20} /> : null}
                         >
-                          {loading ? 'Booking...' : 'Confirm Booking'}
+                          {loading ? 'Submitting Request...' : 'Submit Service Request'}
                         </Button>
                       </Box>
                     </Box>

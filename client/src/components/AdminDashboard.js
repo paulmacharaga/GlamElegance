@@ -29,7 +29,7 @@ import {
 // GoogleAccountManager import removed as it's not used
 import AdminHierarchicalServices from './AdminHierarchicalServices';
 import StaffManagement from './StaffManagement';
-import AdminBookingCalendar from './AdminBookingCalendar';
+import StaffBookingManagement from './StaffBookingManagement';
 import LoyaltyManagement from './LoyaltyManagement';
 import CustomerManagement from './CustomerManagement';
 import GoogleAccountManager from './GoogleAccountManager';
@@ -423,7 +423,7 @@ const AdminDashboard = () => {
                 </Grid>
               </Box>
             )}
-            {activeTab === 1 && <AdminBookingCalendar />}
+            {activeTab === 1 && <StaffBookingManagement />}
             {activeTab === 2 && <AdminHierarchicalServices />}
             {activeTab === 3 && <StaffManagement />}
             {activeTab === 4 && <CustomerManagement />}

@@ -33,7 +33,7 @@ const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
   const [selectedService, setSelectedService] = useState(null);
   const [serviceDetails, setServiceDetails] = useState(null);
   const [selectedVariants, setSelectedVariants] = useState({});
-  const [priceCalculation, setPriceCalculation] = useState(null);
+  // Removed price calculation - customers don't see pricing
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -97,8 +97,7 @@ const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
       if (data.success) {
         setServiceDetails(data.service);
         setSelectedVariants({});
-        // Auto-calculate initial price
-        calculatePrice(serviceId, []);
+        // No price calculation for customers
       } else {
         setError('Failed to load service details');
       }
@@ -110,28 +109,7 @@ const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
     }
   };
 
-  const calculatePrice = async (serviceId, variantIds) => {
-    try {
-      const response = await fetch('/api/hierarchical-services/calculate-price', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          serviceId,
-          variantIds
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setPriceCalculation(data.calculation);
-      }
-    } catch (error) {
-      console.error('Error calculating price:', error);
-    }
-  };
+  // Price calculation removed - customers don't see pricing
 
   const handleCategorySelect = (category) => {
     setSelectedCategory(category);
@@ -165,13 +143,7 @@ const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
     }
     
     setSelectedVariants(newSelectedVariants);
-    
-    // Calculate new price
-    const allSelectedVariantIds = Object.values(newSelectedVariants)
-      .flat()
-      .filter(id => id !== null);
-    
-    calculatePrice(selectedService.id, allSelectedVariantIds);
+    // No price calculation for customers
   };
 
   const handleNext = () => {
@@ -189,19 +161,27 @@ const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
   };
 
   const handleConfirm = () => {
-    if (onServiceSelected && selectedService && priceCalculation) {
+    if (onServiceSelected && selectedService) {
       const allSelectedVariantIds = Object.values(selectedVariants)
         .flat()
         .filter(id => id !== null);
-      
+
+      // Get selected variant details for display
+      const selectedVariantDetails = [];
+      if (serviceDetails && serviceDetails.variants) {
+        Object.values(serviceDetails.variants).flat().forEach(variant => {
+          if (allSelectedVariantIds.includes(variant.id)) {
+            selectedVariantDetails.push(variant);
+          }
+        });
+      }
+
       onServiceSelected({
         service: selectedService,
         category: selectedCategory,
-        variants: priceCalculation.selectedVariants,
+        variants: selectedVariantDetails,
         variantIds: allSelectedVariantIds,
-        totalPrice: priceCalculation.totalPrice,
-        totalDuration: priceCalculation.totalDuration,
-        calculation: priceCalculation
+        totalDuration: selectedService.baseDuration // Use base duration only
       });
     }
   };
@@ -298,11 +278,8 @@ const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
                           <Typography variant="body2" color="text.secondary" gutterBottom>
                             {service.description}
                           </Typography>
-                          <Box display="flex" justifyContent="space-between" alignItems="center">
-                            <Typography variant="h6" color="primary">
-                              ${service.basePrice}
-                            </Typography>
-                            <Chip 
+                          <Box display="flex" justifyContent="flex-end" alignItems="center">
+                            <Chip
                               label={`${service.baseDuration} min`}
                               size="small"
                               variant="outlined"
@@ -356,22 +333,6 @@ const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
                                 <Box>
                                   <Typography variant="body1">
                                     {variant.name}
-                                    {variant.priceModifier !== 0 && (
-                                      <Chip
-                                        label={`${variant.priceModifier > 0 ? '+' : ''}$${variant.priceModifier}`}
-                                        size="small"
-                                        color={variant.priceModifier > 0 ? 'primary' : 'secondary'}
-                                        sx={{ ml: 1 }}
-                                      />
-                                    )}
-                                    {variant.durationModifier !== 0 && (
-                                      <Chip
-                                        label={`${variant.durationModifier > 0 ? '+' : ''}${variant.durationModifier}min`}
-                                        size="small"
-                                        variant="outlined"
-                                        sx={{ ml: 1 }}
-                                      />
-                                    )}
                                   </Typography>
                                   {variant.description && (
                                     <Typography variant="body2" color="text.secondary">
@@ -399,22 +360,6 @@ const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
                               <Box>
                                 <Typography variant="body1">
                                   {variant.name}
-                                  {variant.priceModifier !== 0 && (
-                                    <Chip
-                                      label={`${variant.priceModifier > 0 ? '+' : ''}$${variant.priceModifier}`}
-                                      size="small"
-                                      color={variant.priceModifier > 0 ? 'primary' : 'secondary'}
-                                      sx={{ ml: 1 }}
-                                    />
-                                  )}
-                                  {variant.durationModifier !== 0 && (
-                                    <Chip
-                                      label={`${variant.durationModifier > 0 ? '+' : ''}${variant.durationModifier}min`}
-                                      size="small"
-                                      variant="outlined"
-                                      sx={{ ml: 1 }}
-                                    />
-                                  )}
                                 </Typography>
                                 {variant.description && (
                                   <Typography variant="body2" color="text.secondary">
@@ -430,37 +375,7 @@ const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
                   </Box>
                 ))}
 
-                {priceCalculation && (
-                  <Card sx={{ mt: 2, bgcolor: 'primary.light', color: 'primary.contrastText' }}>
-                    <CardContent>
-                      <Typography variant="h6" gutterBottom>
-                        Price Summary
-                      </Typography>
-                      <Box display="flex" justifyContent="space-between">
-                        <Typography>Base Price:</Typography>
-                        <Typography>${priceCalculation.breakdown.basePrice}</Typography>
-                      </Box>
-                      {priceCalculation.breakdown.variantPriceModifier !== 0 && (
-                        <Box display="flex" justifyContent="space-between">
-                          <Typography>Options:</Typography>
-                          <Typography>
-                            {priceCalculation.breakdown.variantPriceModifier > 0 ? '+' : ''}
-                            ${priceCalculation.breakdown.variantPriceModifier}
-                          </Typography>
-                        </Box>
-                      )}
-                      <Divider sx={{ my: 1, bgcolor: 'primary.contrastText' }} />
-                      <Box display="flex" justifyContent="space-between">
-                        <Typography variant="h6">Total:</Typography>
-                        <Typography variant="h6">${priceCalculation.totalPrice}</Typography>
-                      </Box>
-                      <Box display="flex" justifyContent="space-between">
-                        <Typography variant="body2">Duration:</Typography>
-                        <Typography variant="body2">{priceCalculation.totalDuration} minutes</Typography>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                )}
+                {/* Price summary removed - customers don't see pricing */}
 
                 <Box sx={{ mt: 2 }}>
                   <Button
@@ -480,7 +395,7 @@ const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
         <Step>
           <StepLabel>Review & Confirm</StepLabel>
           <StepContent>
-            {priceCalculation && (
+            {selectedService && (
               <Box>
                 <Typography variant="h6" gutterBottom>
                   Service Summary
@@ -489,35 +404,39 @@ const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
                 <Card sx={{ mb: 2 }}>
                   <CardContent>
                     <Typography variant="h6" color="primary" gutterBottom>
-                      {priceCalculation.service.name}
+                      {selectedService.name}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
                       {selectedCategory.name}
                     </Typography>
 
-                    {priceCalculation.selectedVariants.length > 0 && (
+                    {Object.values(selectedVariants).flat().filter(id => id !== null).length > 0 && (
                       <Box sx={{ mt: 2 }}>
                         <Typography variant="subtitle2" gutterBottom>
                           Selected Options:
                         </Typography>
-                        {priceCalculation.selectedVariants.map((variant) => (
-                          <Chip
-                            key={variant.id}
-                            label={variant.name}
-                            size="small"
-                            sx={{ mr: 1, mb: 1 }}
-                          />
-                        ))}
+                        {serviceDetails && serviceDetails.variants &&
+                          Object.values(serviceDetails.variants).flat()
+                            .filter(variant => Object.values(selectedVariants).flat().includes(variant.id))
+                            .map((variant) => (
+                              <Chip
+                                key={variant.id}
+                                label={variant.name}
+                                size="small"
+                                sx={{ mr: 1, mb: 1 }}
+                              />
+                            ))
+                        }
                       </Box>
                     )}
 
                     <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Box>
-                        <Typography variant="h5" color="primary">
-                          ${priceCalculation.totalPrice}
+                        <Typography variant="body1" color="text.secondary">
+                          Estimated Duration: {selectedService.baseDuration} minutes
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {priceCalculation.totalDuration} minutes
+                          Final pricing will be provided by our staff
                         </Typography>
                       </Box>
                       <Button
@@ -526,7 +445,7 @@ const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
                         onClick={handleConfirm}
                         startIcon={<ShoppingCart />}
                       >
-                        Book This Service
+                        Request This Service
                       </Button>
                     </Box>
                   </CardContent>

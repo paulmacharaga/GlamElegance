@@ -66,7 +66,6 @@ router.post('/', upload.fields([
       variantIds = [],
       bookingDate,
       bookingTime,
-      totalPrice,
       totalDuration,
       notes,
       joinLoyalty
@@ -150,7 +149,7 @@ router.post('/', upload.fields([
           bookingTime: bookingTime,
           status: 'pending',
           notes: notes || '',
-          totalPrice: totalPrice || serviceDoc.basePrice,
+          totalPrice: null, // Will be set by staff when confirming
           totalDuration: totalDuration || serviceDoc.baseDuration,
           inspirationImages: inspirationImages.length > 0 ? inspirationImages : undefined,
           currentHairImages: Object.keys(currentHairImages).length > 0 ? currentHairImages : undefined
@@ -681,6 +680,167 @@ router.get('/available-slots', async (req, res) => {
     });
   }
 });
+
+// Staff: Confirm booking with pricing
+router.patch('/:id/confirm', staffAuth, [
+  body('totalPrice').isFloat({ min: 0 }).withMessage('Valid price is required'),
+  body('notes').optional().isString()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
+      });
+    }
+
+    const { id } = req.params;
+    const { totalPrice, notes } = req.body;
+
+    // Find the booking
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: {
+        service: {
+          include: {
+            category: true
+          }
+        },
+        serviceVariants: {
+          include: {
+            variant: true
+          }
+        }
+      }
+    });
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    if (booking.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Booking is not in pending status'
+      });
+    }
+
+    // Update booking with price and confirm
+    const updatedBooking = await prisma.booking.update({
+      where: { id },
+      data: {
+        totalPrice: parseFloat(totalPrice),
+        status: 'confirmed',
+        notes: notes || booking.notes
+      },
+      include: {
+        service: {
+          include: {
+            category: true
+          }
+        },
+        serviceVariants: {
+          include: {
+            variant: true
+          }
+        }
+      }
+    });
+
+    // Send confirmation email to customer
+    try {
+      await sendBookingConfirmationEmail(updatedBooking);
+    } catch (emailError) {
+      console.error('Error sending confirmation email:', emailError);
+      // Don't fail the request if email fails
+    }
+
+    res.json({
+      success: true,
+      message: 'Booking confirmed successfully',
+      booking: updatedBooking
+    });
+
+  } catch (error) {
+    console.error('Error confirming booking:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to confirm booking',
+      error: error.message
+    });
+  }
+});
+
+// Helper function to send booking confirmation email
+async function sendBookingConfirmationEmail(booking) {
+  const nodemailer = require('nodemailer');
+
+  // Skip email if not configured
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    console.log('Email not configured - skipping email notification');
+    return;
+  }
+
+  // Configure email transporter
+  const transporter = nodemailer.createTransporter({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
+    }
+  });
+
+  // Format service variants for email
+  const selectedVariants = booking.serviceVariants.map(sv => sv.variant.name).join(', ');
+
+  const emailContent = `
+    <h2>Booking Confirmation - Glam Elegance</h2>
+
+    <p>Dear ${booking.customerName},</p>
+
+    <p>Your service request has been confirmed! Here are the details:</p>
+
+    <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+      <h3>Service Details</h3>
+      <p><strong>Service:</strong> ${booking.service.name}</p>
+      <p><strong>Category:</strong> ${booking.service.category.name}</p>
+      ${selectedVariants ? `<p><strong>Options:</strong> ${selectedVariants}</p>` : ''}
+      <p><strong>Duration:</strong> ${booking.totalDuration} minutes</p>
+
+      <h3>Appointment Details</h3>
+      <p><strong>Date:</strong> ${new Date(booking.bookingDate).toLocaleDateString()}</p>
+      <p><strong>Time:</strong> ${booking.bookingTime}</p>
+
+      <h3>Pricing</h3>
+      <p><strong>Total Price:</strong> $${booking.totalPrice}</p>
+
+      ${booking.notes ? `<h3>Notes</h3><p>${booking.notes}</p>` : ''}
+    </div>
+
+    <p>We look forward to seeing you!</p>
+
+    <p>Best regards,<br>
+    The Glam Elegance Team</p>
+
+    <hr>
+    <p style="font-size: 12px; color: #666;">
+      If you need to make changes to your appointment, please contact us as soon as possible.
+    </p>
+  `;
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER || 'noreply@glamelegance.com',
+    to: booking.customerEmail,
+    subject: 'Booking Confirmation - Glam Elegance',
+    html: emailContent
+  };
+
+  await transporter.sendMail(mailOptions);
+}
 
 // Helper function to convert time string to minutes
 function timeStringToMinutes(timeString) {
