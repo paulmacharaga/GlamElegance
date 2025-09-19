@@ -740,4 +740,32 @@ router.post('/cleanup-old-services', async (req, res) => {
   }
 });
 
+// Clear all hierarchical services and categories for fresh start
+router.post('/clear-hierarchical-services', async (req, res) => {
+  try {
+    // Delete all service variants
+    await prisma.serviceVariant.deleteMany({});
+
+    // Delete all services
+    await prisma.service.deleteMany({});
+
+    // Delete all categories
+    await prisma.serviceCategory.deleteMany({});
+
+    res.json({
+      success: true,
+      message: 'All hierarchical services and categories cleared successfully',
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error clearing hierarchical services:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to clear hierarchical services',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
