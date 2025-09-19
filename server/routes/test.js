@@ -694,38 +694,47 @@ router.post('/migrate-hierarchical', async (req, res) => {
   }
 });
 
-// Check for duplicate services
-router.get('/check-services', async (req, res) => {
+// Check for duplicate services and clean up old services
+router.post('/cleanup-old-services', async (req, res) => {
   try {
-    // Count services in hierarchical services table
-    const hierarchicalCount = await prisma.service.count();
-
-    // Get sample services
-    const sampleServices = await prisma.service.findMany({
-      take: 10,
+    // Check if there are any old services that might conflict
+    const allServices = await prisma.service.findMany({
       include: {
         category: true
       }
     });
 
+    // Check if there are services without proper hierarchical structure
+    const servicesWithoutHierarchy = allServices.filter(service =>
+      !service.category || !service.category.name.includes('Services') && !service.category.name.includes('Treatments') && !service.category.name.includes('Therapy')
+    );
+
+    // Deactivate old services that don't belong to hierarchical categories
+    if (servicesWithoutHierarchy.length > 0) {
+      await prisma.service.updateMany({
+        where: {
+          id: { in: servicesWithoutHierarchy.map(s => s.id) }
+        },
+        data: {
+          isActive: false
+        }
+      });
+    }
+
     res.json({
       success: true,
-      hierarchicalServicesCount: hierarchicalCount,
-      sampleServices: sampleServices.map(s => ({
-        id: s.id,
-        name: s.name,
-        category: s.category?.name,
-        basePrice: s.basePrice,
-        baseDuration: s.baseDuration
-      })),
+      message: 'Old services cleanup completed',
+      totalServices: allServices.length,
+      deactivatedServices: servicesWithoutHierarchy.length,
+      deactivatedServiceNames: servicesWithoutHierarchy.map(s => s.name),
       timestamp: new Date().toISOString()
     });
 
   } catch (error) {
-    console.error('Error checking services:', error);
+    console.error('Error cleaning up services:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to check services',
+      message: 'Failed to cleanup services',
       error: error.message
     });
   }
