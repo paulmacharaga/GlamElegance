@@ -66,17 +66,74 @@ router.post('/', handleBookingData, [
   body('appointmentTime').optional().notEmpty().withMessage('Appointment time is required'),
   body('bookingTime').optional().notEmpty().withMessage('Appointment time is required')
 ], async (req, res) => {
+  const startTime = Date.now();
+  const requestId = `booking_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
   try {
-    console.log('📝 Booking creation request:', {
-      body: req.body,
-      files: req.files ? Object.keys(req.files) : 'none'
+    console.log(`\n🚀 [${requestId}] BOOKING CREATION STARTED`);
+    console.log(`📝 [${requestId}] Request Details:`, {
+      method: req.method,
+      contentType: req.headers['content-type'],
+      bodyKeys: Object.keys(req.body || {}),
+      filesPresent: req.files ? Object.keys(req.files) : 'none',
+      bodySize: JSON.stringify(req.body || {}).length,
+      timestamp: new Date().toISOString()
     });
 
+    console.log(`📋 [${requestId}] Request Body:`, JSON.stringify(req.body, null, 2));
+
+    if (req.files) {
+      console.log(`📎 [${requestId}] Files Uploaded:`, Object.entries(req.files).map(([key, files]) => ({
+        field: key,
+        count: Array.isArray(files) ? files.length : 1,
+        filenames: Array.isArray(files) ? files.map(f => f.filename) : [files.filename]
+      })));
+    }
+
+    // Validation check with detailed logging
+    console.log(`✅ [${requestId}] Running validation checks...`);
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('❌ Validation errors:', errors.array());
-      return res.status(400).json({ errors: errors.array() });
+      console.log(`❌ [${requestId}] VALIDATION FAILED:`, {
+        errorCount: errors.array().length,
+        errors: errors.array().map(err => ({
+          field: err.path || err.param,
+          message: err.msg,
+          value: err.value,
+          location: err.location
+        }))
+      });
+
+      return res.status(400).json({
+        success: false,
+        error: 'VALIDATION_ERROR',
+        message: 'Validation failed for one or more fields',
+        details: errors.array().map(err => ({
+          field: err.path || err.param,
+          message: err.msg,
+          value: err.value
+        })),
+        requestId
+      });
     }
+
+    console.log(`✅ [${requestId}] Validation passed successfully`);
+  } catch (validationError) {
+    console.error(`💥 [${requestId}] VALIDATION SETUP ERROR:`, {
+      error: validationError.message,
+      stack: validationError.stack
+    });
+
+    return res.status(500).json({
+      success: false,
+      error: 'VALIDATION_SETUP_ERROR',
+      message: 'Error in validation setup',
+      requestId
+    });
+  }
+
+  try {
+    console.log(`🔍 [${requestId}] Extracting and processing request data...`);
 
     const {
       customerName,
@@ -94,21 +151,80 @@ router.post('/', handleBookingData, [
       joinLoyalty
     } = req.body;
 
+    console.log(`📊 [${requestId}] Extracted Fields:`, {
+      customerName: customerName ? `"${customerName}"` : 'MISSING',
+      customerEmail: customerEmail ? `"${customerEmail}"` : 'MISSING',
+      customerPhone: customerPhone ? `"${customerPhone}"` : 'MISSING',
+      serviceId: serviceId || 'MISSING',
+      service: service || 'N/A (legacy)',
+      variantIds: Array.isArray(variantIds) ? `[${variantIds.length} items]` : variantIds,
+      bookingDate: bookingDate || 'MISSING',
+      appointmentDate: appointmentDate || 'N/A (legacy)',
+      bookingTime: bookingTime || 'MISSING',
+      appointmentTime: appointmentTime || 'N/A (legacy)',
+      totalDuration: totalDuration || 'not provided',
+      notes: notes ? `"${notes.substring(0, 50)}${notes.length > 50 ? '...' : ''}"` : 'empty',
+      joinLoyalty: joinLoyalty
+    });
+
     // Handle field name variations for backward compatibility
     const finalServiceId = serviceId || service;
     const finalBookingDate = bookingDate || appointmentDate;
     const finalBookingTime = bookingTime || appointmentTime;
 
-    // Validate required fields after field mapping
-    if (!finalServiceId) {
-      return res.status(400).json({ message: 'Service ID is required' });
+    console.log(`🔄 [${requestId}] Field Mapping Applied:`, {
+      finalServiceId: finalServiceId || 'STILL MISSING',
+      finalBookingDate: finalBookingDate || 'STILL MISSING',
+      finalBookingTime: finalBookingTime || 'STILL MISSING'
+    });
+
+    // Validate required fields after field mapping with detailed logging
+    console.log(`✅ [${requestId}] Validating required fields...`);
+    const missingFields = [];
+
+    if (!customerName) missingFields.push('customerName');
+    if (!customerEmail) missingFields.push('customerEmail');
+    if (!customerPhone) missingFields.push('customerPhone');
+    if (!finalServiceId) missingFields.push('serviceId/service');
+    if (!finalBookingDate) missingFields.push('bookingDate/appointmentDate');
+    if (!finalBookingTime) missingFields.push('bookingTime/appointmentTime');
+
+    if (missingFields.length > 0) {
+      console.log(`❌ [${requestId}] MISSING REQUIRED FIELDS:`, {
+        count: missingFields.length,
+        fields: missingFields,
+        providedFields: Object.keys(req.body)
+      });
+
+      return res.status(400).json({
+        success: false,
+        error: 'MISSING_REQUIRED_FIELDS',
+        message: `Missing required fields: ${missingFields.join(', ')}`,
+        missingFields,
+        providedFields: Object.keys(req.body),
+        requestId
+      });
     }
-    if (!finalBookingDate) {
-      return res.status(400).json({ message: 'Booking date is required' });
-    }
-    if (!finalBookingTime) {
-      return res.status(400).json({ message: 'Booking time is required' });
-    }
+
+    console.log(`✅ [${requestId}] All required fields validated successfully`);
+  } catch (fieldProcessingError) {
+    console.error(`💥 [${requestId}] FIELD PROCESSING ERROR:`, {
+      error: fieldProcessingError.message,
+      stack: fieldProcessingError.stack,
+      requestBody: req.body
+    });
+
+    return res.status(500).json({
+      success: false,
+      error: 'FIELD_PROCESSING_ERROR',
+      message: 'Error processing request fields',
+      requestId
+    });
+  }
+
+  try {
+    console.log(`🔍 [${requestId}] Validating service existence...`);
+    console.log(`📋 [${requestId}] Looking for service ID: "${finalServiceId}"`);
 
     // Check if service exists and is active
     const serviceDoc = await prisma.service.findUnique({
@@ -121,13 +237,60 @@ router.post('/', handleBookingData, [
       }
     });
 
+    console.log(`📊 [${requestId}] Service Query Result:`, {
+      found: !!serviceDoc,
+      serviceId: finalServiceId,
+      serviceName: serviceDoc?.name || 'N/A',
+      categoryName: serviceDoc?.category?.name || 'N/A',
+      isActive: serviceDoc?.isActive || 'N/A',
+      baseDuration: serviceDoc?.baseDuration || 'N/A',
+      basePrice: serviceDoc?.basePrice || 'N/A',
+      variantCount: serviceDoc?.variants?.length || 0
+    });
+
     if (!serviceDoc) {
-      return res.status(400).json({ message: 'Service not found or inactive' });
+      console.log(`❌ [${requestId}] SERVICE NOT FOUND:`, {
+        searchedId: finalServiceId,
+        searchCriteria: 'id + isActive: true'
+      });
+
+      return res.status(400).json({
+        success: false,
+        error: 'SERVICE_NOT_FOUND',
+        message: 'Service not found or inactive',
+        serviceId: finalServiceId,
+        requestId
+      });
     }
+
+    console.log(`✅ [${requestId}] Service validated successfully: "${serviceDoc.name}"`);
+  } catch (serviceValidationError) {
+    console.error(`💥 [${requestId}] SERVICE VALIDATION ERROR:`, {
+      error: serviceValidationError.message,
+      stack: serviceValidationError.stack,
+      serviceId: finalServiceId
+    });
+
+    return res.status(500).json({
+      success: false,
+      error: 'SERVICE_VALIDATION_ERROR',
+      message: 'Error validating service',
+      requestId
+    });
+  }
+
+  try {
+    console.log(`🔍 [${requestId}] Validating service variants...`);
 
     // Validate selected variants and calculate total duration
     let calculatedDuration = serviceDoc.baseDuration;
     let validVariants = [];
+
+    console.log(`📊 [${requestId}] Variant Processing:`, {
+      requestedVariantIds: variantIds,
+      requestedCount: variantIds.length,
+      availableVariants: serviceDoc.variants.map(v => ({ id: v.id, name: v.name }))
+    });
 
     if (variantIds.length > 0) {
       validVariants = await prisma.serviceVariant.findMany({
@@ -138,8 +301,31 @@ router.post('/', handleBookingData, [
         }
       });
 
+      console.log(`📋 [${requestId}] Variant Validation Result:`, {
+        requested: variantIds.length,
+        found: validVariants.length,
+        validVariants: validVariants.map(v => ({ id: v.id, name: v.name, durationModifier: v.durationModifier }))
+      });
+
       if (validVariants.length !== variantIds.length) {
-        return res.status(400).json({ message: 'Invalid service variants selected' });
+        const foundIds = validVariants.map(v => v.id);
+        const missingIds = variantIds.filter(id => !foundIds.includes(id));
+
+        console.log(`❌ [${requestId}] VARIANT VALIDATION FAILED:`, {
+          requestedIds: variantIds,
+          foundIds,
+          missingIds
+        });
+
+        return res.status(400).json({
+          success: false,
+          error: 'INVALID_VARIANTS',
+          message: 'One or more selected variants are invalid',
+          requestedVariants: variantIds,
+          validVariants: foundIds,
+          invalidVariants: missingIds,
+          requestId
+        });
       }
 
       // Calculate total duration including variant modifiers
@@ -148,7 +334,35 @@ router.post('/', handleBookingData, [
       }, 0);
 
       calculatedDuration = serviceDoc.baseDuration + totalDurationModifier;
+
+      console.log(`⏱️ [${requestId}] Duration Calculation:`, {
+        baseDuration: serviceDoc.baseDuration,
+        variantModifiers: validVariants.map(v => v.durationModifier || 0),
+        totalModifier: totalDurationModifier,
+        calculatedDuration
+      });
+    } else {
+      console.log(`📋 [${requestId}] No variants requested, using base duration: ${calculatedDuration}`);
     }
+
+    console.log(`✅ [${requestId}] Variant validation completed successfully`);
+  } catch (variantValidationError) {
+    console.error(`💥 [${requestId}] VARIANT VALIDATION ERROR:`, {
+      error: variantValidationError.message,
+      stack: variantValidationError.stack,
+      variantIds
+    });
+
+    return res.status(500).json({
+      success: false,
+      error: 'VARIANT_VALIDATION_ERROR',
+      message: 'Error validating service variants',
+      requestId
+    });
+  }
+
+  try {
+    console.log(`🕐 [${requestId}] Checking for booking conflicts...`);
 
     // Check for existing booking at same time
     const existingBooking = await prisma.booking.findFirst({
@@ -159,20 +373,65 @@ router.post('/', handleBookingData, [
       }
     });
 
+    console.log(`📊 [${requestId}] Conflict Check Result:`, {
+      searchDate: finalBookingDate,
+      searchTime: finalBookingTime,
+      conflictFound: !!existingBooking,
+      existingBookingId: existingBooking?.id || 'none'
+    });
+
     if (existingBooking) {
-      return res.status(400).json({ message: 'Time slot already booked' });
+      console.log(`❌ [${requestId}] BOOKING CONFLICT DETECTED:`, {
+        existingBookingId: existingBooking.id,
+        customerName: existingBooking.customerName,
+        status: existingBooking.status
+      });
+
+      return res.status(400).json({
+        success: false,
+        error: 'TIME_SLOT_UNAVAILABLE',
+        message: 'Time slot already booked',
+        conflictingBooking: {
+          id: existingBooking.id,
+          customerName: existingBooking.customerName,
+          status: existingBooking.status
+        },
+        requestId
+      });
     }
 
+    console.log(`✅ [${requestId}] No booking conflicts found`);
+  } catch (conflictCheckError) {
+    console.error(`💥 [${requestId}] CONFLICT CHECK ERROR:`, {
+      error: conflictCheckError.message,
+      stack: conflictCheckError.stack
+    });
+
+    return res.status(500).json({
+      success: false,
+      error: 'CONFLICT_CHECK_ERROR',
+      message: 'Error checking for booking conflicts',
+      requestId
+    });
+  }
+
+  try {
+    console.log(`🖼️ [${requestId}] Processing uploaded images...`);
 
     // Process uploaded images (for FormData requests)
     const inspirationImages = [];
     const currentHairImages = {};
 
     if (req.files) {
+      console.log(`📎 [${requestId}] Files detected, processing...`);
+
       // Process inspiration images
       if (req.files.inspirationImages) {
-        req.files.inspirationImages.forEach(file => {
-          inspirationImages.push(`/uploads/bookings/${file.filename}`);
+        console.log(`🖼️ [${requestId}] Processing ${req.files.inspirationImages.length} inspiration images`);
+        req.files.inspirationImages.forEach((file, index) => {
+          const imagePath = `/uploads/bookings/${file.filename}`;
+          inspirationImages.push(imagePath);
+          console.log(`  📷 [${requestId}] Inspiration image ${index + 1}: ${imagePath}`);
         });
       }
 
@@ -180,62 +439,120 @@ router.post('/', handleBookingData, [
       ['front', 'back', 'top'].forEach(angle => {
         const fieldName = `currentHair_${angle}`;
         if (req.files[fieldName] && req.files[fieldName][0]) {
-          currentHairImages[angle] = `/uploads/bookings/${req.files[fieldName][0].filename}`;
+          const imagePath = `/uploads/bookings/${req.files[fieldName][0].filename}`;
+          currentHairImages[angle] = imagePath;
+          console.log(`  💇 [${requestId}] Current hair ${angle}: ${imagePath}`);
         }
       });
+
+      console.log(`📊 [${requestId}] Image Processing Summary:`, {
+        inspirationCount: inspirationImages.length,
+        currentHairAngles: Object.keys(currentHairImages)
+      });
+    } else {
+      console.log(`📋 [${requestId}] No files uploaded (JSON request)`);
     }
 
-    // For JSON requests, images will be empty arrays/objects (handled by database defaults)
+    console.log(`✅ [${requestId}] Image processing completed`);
+  } catch (imageProcessingError) {
+    console.error(`💥 [${requestId}] IMAGE PROCESSING ERROR:`, {
+      error: imageProcessingError.message,
+      stack: imageProcessingError.stack
+    });
+
+    return res.status(422).json({
+      success: false,
+      error: 'IMAGE_PROCESSING_ERROR',
+      message: 'Error processing uploaded images',
+      requestId
+    });
+  }
+
+  try {
+    console.log(`💾 [${requestId}] Starting database transaction...`);
+
+    const bookingData = {
+      customerName,
+      customerEmail,
+      customerPhone,
+      serviceId: serviceDoc.id,
+      bookingDate: new Date(finalBookingDate),
+      bookingTime: finalBookingTime,
+      status: 'pending',
+      notes: notes || '',
+      totalPrice: null, // Will be set by staff when confirming
+      totalDuration: totalDuration || calculatedDuration,
+      inspirationImages: inspirationImages.length > 0 ? inspirationImages : [],
+      currentHairImages: Object.keys(currentHairImages).length > 0 ? currentHairImages : null,
+      joinLoyalty: joinLoyalty === 'true' || joinLoyalty === true
+    };
+
+    console.log(`📋 [${requestId}] Booking Data to Create:`, {
+      ...bookingData,
+      bookingDate: bookingData.bookingDate.toISOString(),
+      inspirationImagesCount: bookingData.inspirationImages.length,
+      currentHairImagesKeys: Object.keys(bookingData.currentHairImages || {}),
+      dataSize: JSON.stringify(bookingData).length
+    });
 
     // Start a transaction
     const booking = await prisma.$transaction(async (prisma) => {
+      console.log(`🔄 [${requestId}] Creating booking record...`);
+
       // Create booking
       const newBooking = await prisma.booking.create({
-        data: {
-          customerName,
-          customerEmail,
-          customerPhone,
-          serviceId: serviceDoc.id,
-          bookingDate: new Date(finalBookingDate),
-          bookingTime: finalBookingTime,
-          status: 'pending',
-          notes: notes || '',
-          totalPrice: null, // Will be set by staff when confirming
-          totalDuration: totalDuration || calculatedDuration,
-          inspirationImages: inspirationImages.length > 0 ? inspirationImages : [],
-          currentHairImages: Object.keys(currentHairImages).length > 0 ? currentHairImages : null,
-          joinLoyalty: joinLoyalty === 'true' || joinLoyalty === true
-        }
+        data: bookingData
+      });
+
+      console.log(`✅ [${requestId}] Booking created successfully:`, {
+        bookingId: newBooking.id,
+        customerName: newBooking.customerName,
+        serviceId: newBooking.serviceId,
+        bookingDate: newBooking.bookingDate.toISOString(),
+        bookingTime: newBooking.bookingTime,
+        status: newBooking.status
       });
 
       // Create booking service variant relationships
       if (variantIds.length > 0) {
+        console.log(`🔗 [${requestId}] Creating variant relationships...`);
+
         const bookingVariants = variantIds.map(variantId => ({
           bookingId: newBooking.id,
           variantId: variantId
         }));
 
+        console.log(`📋 [${requestId}] Variant relationships to create:`, bookingVariants);
+
         await prisma.bookingServiceVariant.createMany({
           data: bookingVariants
         });
+
+        console.log(`✅ [${requestId}] Created ${bookingVariants.length} variant relationships`);
+      } else {
+        console.log(`📋 [${requestId}] No variants to link`);
       }
 
       // Handle loyalty program opt-in if selected
       if (joinLoyalty === 'true' || joinLoyalty === true) {
-        console.log('🎯 Customer opted for loyalty program:', { customerName, customerEmail });
-        // TODO: Implement loyalty program creation
-        // For now, just log the opt-in - will implement in separate fix
-        console.log('✅ Loyalty program opt-in recorded for future implementation');
+        console.log(`🎯 [${requestId}] Customer opted for loyalty program:`, { customerName, customerEmail });
+        console.log(`✅ [${requestId}] Loyalty program opt-in recorded (implementation pending)`);
 
         // TODO: Complete loyalty program implementation
         // - Create customer record if needed
         // - Add to loyalty program
         // - Calculate and award points
         // - Record points history
+      } else {
+        console.log(`📋 [${requestId}] Customer did not opt for loyalty program`);
       }
 
+      console.log(`🎯 [${requestId}] Transaction completed successfully`);
       return newBooking;
     });
+
+    console.log(`✅ [${requestId}] Database transaction completed successfully`);
+    console.log(`📧 [${requestId}] Preparing email notification...`);
 
     // Prepare booking data for email
     const bookingEmailData = {
@@ -251,38 +568,129 @@ router.post('/', handleBookingData, [
 
     // Add loyalty points if applicable
     if (joinLoyalty === 'true' || joinLoyalty === true) {
-      const loyaltyProgram = await prisma.loyaltyProgram.findFirst({
-        where: { isActive: true }
-      });
-      
-      if (loyaltyProgram) {
-        bookingEmailData.loyaltyPointsEarned = loyaltyProgram.pointsPerBooking;
+      try {
+        const loyaltyProgram = await prisma.loyaltyProgram.findFirst({
+          where: { isActive: true }
+        });
+
+        if (loyaltyProgram) {
+          bookingEmailData.loyaltyPointsEarned = loyaltyProgram.pointsPerBooking;
+          console.log(`🎁 [${requestId}] Loyalty points to be earned: ${loyaltyProgram.pointsPerBooking}`);
+        }
+      } catch (loyaltyError) {
+        console.error(`⚠️ [${requestId}] Error fetching loyalty program:`, loyaltyError.message);
       }
     }
 
     // Send confirmation email
     try {
+      console.log(`📧 [${requestId}] Sending confirmation email to: ${customerEmail}`);
       await sendBookingConfirmation(bookingEmailData);
+      console.log(`✅ [${requestId}] Confirmation email sent successfully`);
     } catch (emailError) {
-      console.error('Error sending confirmation email:', emailError);
+      console.error(`⚠️ [${requestId}] Error sending confirmation email:`, {
+        error: emailError.message,
+        customerEmail,
+        // Don't fail the booking if email fails
+      });
       // Don't fail the booking if email fails
     }
 
+    const endTime = Date.now();
+    const processingTime = endTime - startTime;
+
+    console.log(`🎉 [${requestId}] BOOKING CREATION COMPLETED SUCCESSFULLY`);
+    console.log(`📊 [${requestId}] Final Summary:`, {
+      bookingId: booking.id,
+      customerName: booking.customerName,
+      customerEmail: booking.customerEmail,
+      serviceName: serviceDoc.name,
+      bookingDate: booking.bookingDate.toISOString(),
+      bookingTime: booking.bookingTime,
+      totalDuration: booking.totalDuration,
+      variantCount: variantIds.length,
+      inspirationImagesCount: booking.inspirationImages.length,
+      currentHairImagesCount: Object.keys(booking.currentHairImages || {}).length,
+      joinedLoyalty: booking.joinLoyalty,
+      processingTimeMs: processingTime,
+      timestamp: new Date().toISOString()
+    });
+
     res.status(201).json({
+      success: true,
       message: 'Booking created successfully',
-      booking
+      booking,
+      processingTime: `${processingTime}ms`,
+      requestId
     });
+
   } catch (error) {
-    console.error('Booking creation error:', {
-      message: error.message,
+    const endTime = Date.now();
+    const processingTime = endTime - startTime;
+
+    console.error(`💥 [${requestId}] BOOKING CREATION FAILED:`, {
+      error: error.message,
+      errorName: error.name,
+      errorCode: error.code,
       stack: error.stack,
-      name: error.name,
-      code: error.code,
-      meta: error.meta
+      prismaError: error.meta || null,
+      processingTimeMs: processingTime,
+      timestamp: new Date().toISOString(),
+      requestBody: req.body,
+      files: req.files ? Object.keys(req.files) : 'none'
     });
-    res.status(500).json({
-      message: 'Server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+
+    // Categorize error types for better client responses
+    let statusCode = 500;
+    let errorType = 'INTERNAL_SERVER_ERROR';
+    let userMessage = 'An unexpected error occurred while creating your booking';
+
+    if (error.code === 'P2002') {
+      // Prisma unique constraint violation
+      statusCode = 400;
+      errorType = 'DUPLICATE_BOOKING';
+      userMessage = 'A booking with these details already exists';
+    } else if (error.code === 'P2003') {
+      // Prisma foreign key constraint violation
+      statusCode = 400;
+      errorType = 'INVALID_REFERENCE';
+      userMessage = 'Invalid service or variant reference';
+    } else if (error.code === 'P2025') {
+      // Prisma record not found
+      statusCode = 400;
+      errorType = 'RECORD_NOT_FOUND';
+      userMessage = 'Required record not found';
+    } else if (error.name === 'ValidationError') {
+      statusCode = 400;
+      errorType = 'VALIDATION_ERROR';
+      userMessage = 'Invalid booking data provided';
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      error: errorType,
+      message: userMessage,
+      ...(process.env.NODE_ENV === 'development' && {
+        debug: {
+          originalError: error.message,
+          errorCode: error.code,
+          processingTime: `${processingTime}ms`
+        }
+      }),
+      requestId
+    });
+  } catch (transactionError) {
+    console.error(`💥 [${requestId}] DATABASE TRANSACTION ERROR:`, {
+      error: transactionError.message,
+      stack: transactionError.stack,
+      code: transactionError.code
+    });
+
+    return res.status(500).json({
+      success: false,
+      error: 'DATABASE_TRANSACTION_ERROR',
+      message: 'Error during database transaction',
+      requestId
     });
   }
 });
