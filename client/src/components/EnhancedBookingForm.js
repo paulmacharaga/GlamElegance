@@ -18,9 +18,23 @@ import {
   Step,
   StepLabel,
   StepContent,
-  Chip
+  Chip,
+  FormControlLabel,
+  Checkbox,
+  ImageList,
+  ImageListItem,
+  ImageListItemBar
 } from '@mui/material';
-import { ArrowBack, CalendarToday, AccessTime, Person, CheckCircle } from '@mui/icons-material';
+import {
+  ArrowBack,
+  CalendarToday,
+  AccessTime,
+  Person,
+  CheckCircle,
+  PhotoCamera,
+  Delete,
+  CloudUpload
+} from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -43,7 +57,14 @@ const EnhancedBookingForm = () => {
     customerPhone: '',
     appointmentDate: null,
     appointmentTime: '',
-    notes: ''
+    notes: '',
+    joinLoyalty: false,
+    inspirationImages: [],
+    currentHairImages: {
+      front: null,
+      back: null,
+      top: null
+    }
   });
 
   const steps = [
@@ -105,6 +126,56 @@ const EnhancedBookingForm = () => {
     }));
   };
 
+  // Handle inspiration image uploads
+  const handleInspirationImageUpload = (files) => {
+    if (!files || files.length === 0) return;
+
+    const newImages = Array.from(files).map(file => ({
+      file,
+      preview: URL.createObjectURL(file)
+    }));
+
+    setFormData(prev => ({
+      ...prev,
+      inspirationImages: [...prev.inspirationImages, ...newImages]
+    }));
+  };
+
+  // Remove inspiration image
+  const removeInspirationImage = (index) => {
+    setFormData(prev => {
+      const newImages = [...prev.inspirationImages];
+      // Clean up the object URL to prevent memory leaks
+      URL.revokeObjectURL(newImages[index].preview);
+      newImages.splice(index, 1);
+      return {
+        ...prev,
+        inspirationImages: newImages
+      };
+    });
+  };
+
+  // Handle current hair image upload
+  const handleCurrentHairImageUpload = (angle, file) => {
+    if (!file) return;
+
+    // Clean up previous image URL if exists
+    if (formData.currentHairImages[angle]?.preview) {
+      URL.revokeObjectURL(formData.currentHairImages[angle].preview);
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      currentHairImages: {
+        ...prev.currentHairImages,
+        [angle]: {
+          file,
+          preview: URL.createObjectURL(file)
+        }
+      }
+    }));
+  };
+
   // Handle time slot selection
   const handleTimeSelect = (time) => {
     setFormData(prev => ({
@@ -121,31 +192,47 @@ const EnhancedBookingForm = () => {
       setError(null);
 
       // Validate required fields
-      if (!selectedService || !formData.customerName || !formData.customerEmail || 
+      if (!selectedService || !formData.customerName || !formData.customerEmail ||
           !formData.customerPhone || !formData.appointmentDate || !formData.appointmentTime) {
         setError('Please fill in all required fields');
         return;
       }
 
-      const bookingData = {
-        customerName: formData.customerName,
-        customerEmail: formData.customerEmail,
-        customerPhone: formData.customerPhone,
-        serviceId: selectedService.service.id,
-        variantIds: selectedService.variantIds || [],
-        bookingDate: dayjs(formData.appointmentDate).format('YYYY-MM-DD'),
-        bookingTime: formData.appointmentTime,
-        notes: formData.notes,
-        totalDuration: selectedService.totalDuration
-        // No totalPrice - staff will set pricing
-      };
+      // Create FormData for file uploads
+      const formDataToSend = new FormData();
+
+      // Add basic booking data
+      formDataToSend.append('customerName', formData.customerName);
+      formDataToSend.append('customerEmail', formData.customerEmail);
+      formDataToSend.append('customerPhone', formData.customerPhone);
+      formDataToSend.append('serviceId', selectedService.service.id);
+      formDataToSend.append('bookingDate', dayjs(formData.appointmentDate).format('YYYY-MM-DD'));
+      formDataToSend.append('bookingTime', formData.appointmentTime);
+      formDataToSend.append('notes', formData.notes || '');
+      formDataToSend.append('totalDuration', selectedService.totalDuration);
+      formDataToSend.append('joinLoyalty', formData.joinLoyalty);
+
+      // Add variant IDs if any
+      if (selectedService.variantIds && selectedService.variantIds.length > 0) {
+        formDataToSend.append('variantIds', JSON.stringify(selectedService.variantIds));
+      }
+
+      // Add inspiration images
+      formData.inspirationImages.forEach((image, index) => {
+        formDataToSend.append(`inspirationImages`, image.file);
+      });
+
+      // Add current hair images
+      Object.entries(formData.currentHairImages).forEach(([angle, imageData]) => {
+        if (imageData && imageData.file) {
+          formDataToSend.append(`currentHair_${angle}`, imageData.file);
+        }
+      });
 
       const response = await fetch('/api/bookings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(bookingData)
+        body: formDataToSend
+        // Don't set Content-Type header - let browser set it for FormData
       });
 
       const data = await response.json();
@@ -383,6 +470,146 @@ const EnhancedBookingForm = () => {
                         onChange={(e) => handleInputChange('notes', e.target.value)}
                         variant="outlined"
                         placeholder="Any special requests, allergies, or preferences..."
+                      />
+                    </Grid>
+
+                    {/* Inspiration Images Upload */}
+                    <Grid item xs={12}>
+                      <Divider sx={{ my: 2 }} />
+                      <Typography variant="h6" gutterBottom>
+                        <PhotoCamera sx={{ mr: 1, verticalAlign: 'middle' }} />
+                        Inspiration Images (Optional)
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Upload photos of styles you'd like to achieve
+                      </Typography>
+
+                      <input
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        id="inspiration-images-upload"
+                        multiple
+                        type="file"
+                        onChange={(e) => handleInspirationImageUpload(e.target.files)}
+                      />
+                      <label htmlFor="inspiration-images-upload">
+                        <Button
+                          variant="outlined"
+                          component="span"
+                          startIcon={<CloudUpload />}
+                          sx={{ mb: 2 }}
+                        >
+                          Upload Inspiration Images
+                        </Button>
+                      </label>
+
+                      {formData.inspirationImages.length > 0 && (
+                        <ImageList sx={{ width: '100%', height: 200 }} cols={4} rowHeight={150}>
+                          {formData.inspirationImages.map((image, index) => (
+                            <ImageListItem key={index}>
+                              <img
+                                src={image.preview}
+                                alt={`Inspiration ${index + 1}`}
+                                loading="lazy"
+                                style={{ objectFit: 'cover', height: '100%' }}
+                              />
+                              <ImageListItemBar
+                                actionIcon={
+                                  <IconButton
+                                    sx={{ color: 'rgba(255, 255, 255, 0.54)' }}
+                                    onClick={() => removeInspirationImage(index)}
+                                  >
+                                    <Delete />
+                                  </IconButton>
+                                }
+                              />
+                            </ImageListItem>
+                          ))}
+                        </ImageList>
+                      )}
+                    </Grid>
+
+                    {/* Current Hair Images Upload */}
+                    <Grid item xs={12}>
+                      <Typography variant="h6" gutterBottom>
+                        Current Hair Photos (Optional)
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Help us understand your current hair condition
+                      </Typography>
+
+                      <Grid container spacing={2}>
+                        {['front', 'back', 'top'].map((angle) => (
+                          <Grid item xs={12} sm={4} key={angle}>
+                            <Paper sx={{ p: 2, textAlign: 'center', minHeight: 200 }}>
+                              <Typography variant="subtitle2" gutterBottom>
+                                {angle.charAt(0).toUpperCase() + angle.slice(1)} View
+                              </Typography>
+
+                              {formData.currentHairImages[angle] ? (
+                                <Box>
+                                  <img
+                                    src={formData.currentHairImages[angle].preview}
+                                    alt={`Current hair ${angle}`}
+                                    style={{ width: '100%', maxHeight: 120, objectFit: 'cover', borderRadius: 4 }}
+                                  />
+                                  <Button
+                                    size="small"
+                                    color="error"
+                                    onClick={() => handleCurrentHairImageUpload(angle, null)}
+                                    sx={{ mt: 1 }}
+                                  >
+                                    Remove
+                                  </Button>
+                                </Box>
+                              ) : (
+                                <>
+                                  <input
+                                    accept="image/*"
+                                    style={{ display: 'none' }}
+                                    id={`current-hair-${angle}`}
+                                    type="file"
+                                    onChange={(e) => handleCurrentHairImageUpload(angle, e.target.files[0])}
+                                  />
+                                  <label htmlFor={`current-hair-${angle}`}>
+                                    <Button
+                                      variant="outlined"
+                                      component="span"
+                                      startIcon={<PhotoCamera />}
+                                      size="small"
+                                    >
+                                      Upload {angle}
+                                    </Button>
+                                  </label>
+                                </>
+                              )}
+                            </Paper>
+                          </Grid>
+                        ))}
+                      </Grid>
+                    </Grid>
+
+                    {/* Loyalty Program Opt-in */}
+                    <Grid item xs={12}>
+                      <Divider sx={{ my: 2 }} />
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={formData.joinLoyalty}
+                            onChange={(e) => handleInputChange('joinLoyalty', e.target.checked)}
+                            color="primary"
+                          />
+                        }
+                        label={
+                          <Box>
+                            <Typography variant="body1">
+                              Join our loyalty program
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Earn points with every visit and get exclusive rewards
+                            </Typography>
+                          </Box>
+                        }
                       />
                     </Grid>
                   </Grid>
