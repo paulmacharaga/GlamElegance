@@ -22,125 +22,115 @@ model User {
 }
 
 model ServiceCategory {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  description String?
-  icon        String?  // Icon name or URL for UI
-  displayOrder Int     @default(0)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  services Service[]
+  id           String    @id @default(cuid())
+  name         String    @unique
+  description  String?
+  icon         String?
+  displayOrder Int?      @default(0)
+  isActive     Boolean?  @default(true)
+  createdAt    DateTime? @default(now()) @db.Timestamp(6)
+  updatedAt    DateTime? @default(now()) @updatedAt @db.Timestamp(6)
+  services     Service[]
 
   @@map("service_categories")
 }
 
 model Service {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  categoryId  String
-  basePrice   Float?   // Base price for the service (optional - can be set per booking)
-  baseDuration Int?    // Base duration in minutes (optional - can vary per booking)
-  isActive    Boolean  @default(true)
-  displayOrder Int     @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  category ServiceCategory @relation(fields: [categoryId], references: [id])
-  variants ServiceVariant[]
-  bookings Booking[]
+  id           String           @id @default(cuid())
+  categoryId   String
+  name         String
+  description  String?
+  basePrice    Decimal          @db.Decimal(10, 2)
+  baseDuration Int
+  isActive     Boolean?         @default(true)
+  displayOrder Int?             @default(0)
+  createdAt    DateTime?        @default(now()) @db.Timestamp(6)
+  updatedAt    DateTime?        @default(now()) @updatedAt @db.Timestamp(6)
+  variants     ServiceVariant[]
+  bookings     Booking[]
+  category     ServiceCategory  @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("services")
 }
 
 model ServiceVariant {
-  id          String   @id @default(cuid())
-  serviceId   String
-  name        String   // e.g., "30 minutes", "Full Color", "With French Tips"
-  description String?
-  type        String   // e.g., "duration", "intensity", "addon"
-  priceModifier Float  // Amount to add/subtract from base price
-  durationModifier Int @default(0) // Minutes to add/subtract from base duration
-  isActive    Boolean  @default(true)
-  displayOrder Int     @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  bookingVariants BookingServiceVariant[]
+  id               String                  @id @default(cuid())
+  serviceId        String
+  name             String
+  description      String?
+  type             String
+  priceModifier    Decimal                 @db.Decimal(10, 2)
+  durationModifier Int?                    @default(0)
+  isActive         Boolean?                @default(true)
+  displayOrder     Int?                    @default(0)
+  createdAt        DateTime?               @default(now()) @db.Timestamp(6)
+  updatedAt        DateTime?               @default(now()) @updatedAt @db.Timestamp(6)
+  bookingVariants  BookingServiceVariant[]
+  service          Service                 @relation(fields: [serviceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("service_variants")
 }
 
 model Staff {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String
-  email         String?  @unique
+  email         String?   @unique
   password      String
   phone         String?
-  role          String   @default("staff")
-  isActive      Boolean  @default(true)
-  googleId      String?  @unique
+  role          String    @default("staff")
+  isActive      Boolean   @default(true)
+  googleId      String?   @unique
   googleProfile String?
   avatar        String?
-  resetToken    String?  // Password reset token
-  resetTokenExpiry DateTime? // Password reset token expiry
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // Relations
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   bookings      Booking[]
 
   @@map("staff")
 }
 
-// Customer model moved to end of file with more complete definition
-
 model Booking {
-  id            String   @id @default(cuid())
-  customerName  String
-  customerEmail String
-  customerPhone String
-  customerId    String?
-  serviceId     String
-  staffId       String?
-  bookingDate   DateTime
-  bookingTime   String
-  status        String   @default("pending")
-  notes         String?
-  totalPrice    Float?   // Set by staff when confirming booking
-  totalDuration Int?     // Calculated total duration including variants
+  id              String                  @id @default(cuid())
+  customerName    String
+  customerEmail   String
+  customerPhone   String
+  customerId      String?
+  serviceId       String
+  staffId         String?
+  bookingDate     DateTime
+  bookingTime     String
+  status          String                  @default("pending")
+  notes           String?
+  totalPrice      Float?                  // Set by staff when confirming booking
+  totalDuration   Int?                    @default(60)
 
   // Image storage for booking inspiration and current hair photos
-  inspirationImages String[] @default([])  // Array of image URLs/paths
-  currentHairImages Json?                  // JSON object with front/back/top images
+  inspirationImages String[]              @default([])  // Array of image URLs/paths
+  currentHairImages Json?                             // JSON object with front/back/top images
 
   // Loyalty program opt-in
-  joinLoyalty   Boolean  @default(false)  // Customer opted to join loyalty program
+  joinLoyalty     Boolean                 @default(false)  // Customer opted to join loyalty program
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @default(now()) @updatedAt
 
   // Relations
-  customer      Customer? @relation(fields: [customerId], references: [id])
-  service       Service   @relation(fields: [serviceId], references: [id])
-  staff         Staff?    @relation(fields: [staffId], references: [id])
   serviceVariants BookingServiceVariant[]
+  customer        Customer?               @relation(fields: [customerId], references: [id])
+  service         Service                 @relation(fields: [serviceId], references: [id])
+  staff           Staff?                  @relation(fields: [staffId], references: [id])
 
   @@map("bookings")
 }
 
 model BookingServiceVariant {
-  id        String @id @default(cuid())
+  id        String         @id @default(cuid())
   bookingId String
   variantId String
+  createdAt DateTime?      @default(now()) @db.Timestamp(6)
+  booking   Booking        @relation(fields: [bookingId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  variant   ServiceVariant @relation(fields: [variantId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  variant ServiceVariant @relation(fields: [variantId], references: [id])
-
-  @@unique([bookingId, variantId])
   @@map("booking_service_variants")
 }
 
@@ -162,49 +152,47 @@ model Feedback {
 }
 
 model Analytics {
-  id        String   @id @default(cuid())
-  type      String   // qr_scan, google_review_click, booking_created, feedback_submitted
-  metadata  String?
-  bookingId String?
+  id         String   @id @default(cuid())
+  type       String
+  metadata   String?
+  bookingId  String?
   feedbackId String?
-  timestamp DateTime @default(now())
-  
+  timestamp  DateTime @default(now())
+
   @@map("analytics")
 }
 
 model LoyaltyProgram {
-  id                    String   @id @default(cuid())
-  name                  String   @default("Hair Studio Rewards")
-  description           String?
-  pointsPerBooking      Int      @default(10)
-  pointsPerDollar       Int      @default(1)
-  rewardThreshold       Int      @default(100)
-  rewardAmount          Float    @default(10.0)
-  birthdayDiscountRate  Float    @default(20.0) // Birthday discount percentage
-  birthdayDiscountDays  Int      @default(7)    // Days before/after birthday
-  isActive              Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  name                 String   @default("Hair Studio Rewards")
+  description          String?
+  pointsPerBooking     Int      @default(10)
+  pointsPerDollar      Int      @default(1)
+  rewardThreshold      Int      @default(100)
+  rewardAmount         Float    @default(10.0)
+  birthdayDiscountRate Float    @default(20.0)
+  birthdayDiscountDays Int      @default(7)
+  isActive             Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@map("loyalty_programs")
 }
 
 model Customer {
-  id            String   @id @default(cuid())
-  email         String   @unique
+  id            String           @id @default(cuid())
+  email         String           @unique
   password      String?
   name          String
   phone         String?
   dateOfBirth   DateTime?
   address       String?
-  isActive      Boolean  @default(true)
-  googleId      String?  @unique
+  isActive      Boolean          @default(true)
+  googleId      String?          @unique
   googleProfile String?
   avatar        String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // Relations
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
   bookings      Booking[]
   loyalty       CustomerLoyalty?
 
@@ -221,8 +209,6 @@ model CustomerLoyalty {
   lifetimePoints Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-
-  // Relations
   customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   @@map("customer_loyalty")
