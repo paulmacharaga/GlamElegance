@@ -228,13 +228,30 @@ router.post('/', handleBookingData, [
         });
 
         if (!customerLoyalty) {
-          // Add customer to loyalty program
+          // First, create or find customer record
+          let customer = await prisma.customer.findUnique({
+            where: { email: customerEmail }
+          });
+
+          if (!customer) {
+            customer = await prisma.customer.create({
+              data: {
+                name: customerName,
+                email: customerEmail,
+                phone: customerPhone
+              }
+            });
+          }
+
+          // Now create loyalty program entry with customerId
           customerLoyalty = await prisma.customerLoyalty.create({
             data: {
+              customerId: customer.id,
               customerName,
               customerEmail,
               customerPhone,
-              points: 0
+              totalPoints: 0,
+              lifetimePoints: 0
             }
           });
         }
