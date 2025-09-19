@@ -694,4 +694,41 @@ router.post('/migrate-hierarchical', async (req, res) => {
   }
 });
 
+// Check for duplicate services
+router.get('/check-services', async (req, res) => {
+  try {
+    // Count services in hierarchical services table
+    const hierarchicalCount = await prisma.service.count();
+
+    // Get sample services
+    const sampleServices = await prisma.service.findMany({
+      take: 10,
+      include: {
+        category: true
+      }
+    });
+
+    res.json({
+      success: true,
+      hierarchicalServicesCount: hierarchicalCount,
+      sampleServices: sampleServices.map(s => ({
+        id: s.id,
+        name: s.name,
+        category: s.category?.name,
+        basePrice: s.basePrice,
+        baseDuration: s.baseDuration
+      })),
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error checking services:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check services',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
