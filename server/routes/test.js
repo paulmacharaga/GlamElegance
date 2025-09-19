@@ -768,4 +768,36 @@ router.post('/clear-hierarchical-services', async (req, res) => {
   }
 });
 
+// Check what users exist in the database
+router.get('/check-users', async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        createdAt: true
+      }
+    });
+
+    res.json({
+      success: true,
+      users: users,
+      count: users.length,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error checking users:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check users',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
