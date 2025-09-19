@@ -604,9 +604,16 @@ router.get('/hierarchical-test', async (req, res) => {
 // Create hierarchical services tables with proper SQL
 router.post('/migrate-hierarchical', async (req, res) => {
   try {
+    // Drop existing tables if they exist (to fix column names)
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS booking_service_variants CASCADE`);
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS service_variants CASCADE`);
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS services CASCADE`);
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS hierarchical_services CASCADE`);
+    await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS service_categories CASCADE`);
+
     // Create service_categories table (matching Prisma schema)
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS service_categories (
+      CREATE TABLE service_categories (
         id TEXT PRIMARY KEY,
         name TEXT UNIQUE NOT NULL,
         description TEXT,
@@ -620,7 +627,7 @@ router.post('/migrate-hierarchical', async (req, res) => {
 
     // Create services table (matching Prisma schema)
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS services (
+      CREATE TABLE services (
         id TEXT PRIMARY KEY,
         "categoryId" TEXT NOT NULL,
         name TEXT NOT NULL,
@@ -637,7 +644,7 @@ router.post('/migrate-hierarchical', async (req, res) => {
 
     // Create service_variants table (matching Prisma schema)
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS service_variants (
+      CREATE TABLE service_variants (
         id TEXT PRIMARY KEY,
         "serviceId" TEXT NOT NULL,
         name TEXT NOT NULL,
@@ -655,7 +662,7 @@ router.post('/migrate-hierarchical', async (req, res) => {
 
     // Create booking_service_variants table (matching Prisma schema)
     await prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS booking_service_variants (
+      CREATE TABLE booking_service_variants (
         id TEXT PRIMARY KEY,
         "bookingId" TEXT NOT NULL,
         "variantId" TEXT NOT NULL,
