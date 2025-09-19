@@ -672,6 +672,12 @@ router.post('/migrate-hierarchical', async (req, res) => {
       )
     `);
 
+    // Add missing columns to bookings table for hierarchical services
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE bookings
+      ADD COLUMN IF NOT EXISTS "totalDuration" INTEGER DEFAULT 60
+    `);
+
     res.json({
       success: true,
       message: 'Hierarchical services tables created successfully',
