@@ -479,4 +479,105 @@ router.post('/regenerate-prisma', async (req, res) => {
   }
 });
 
+// Check what tables exist in the database
+router.get('/check-tables', async (req, res) => {
+  try {
+    // Check if tables exist and what data they contain
+    const results = {};
+
+    // Check users table
+    try {
+      const userCount = await prisma.user.count();
+      const users = await prisma.user.findMany({
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          name: true,
+          role: true,
+          isActive: true
+        }
+      });
+      results.users = {
+        exists: true,
+        count: userCount,
+        data: users
+      };
+    } catch (error) {
+      results.users = {
+        exists: false,
+        error: error.message
+      };
+    }
+
+    // Check staff table
+    try {
+      const staffCount = await prisma.staff.count();
+      const staff = await prisma.staff.findMany({
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+          role: true,
+          isActive: true
+        }
+      });
+      results.staff = {
+        exists: true,
+        count: staffCount,
+        data: staff
+      };
+    } catch (error) {
+      results.staff = {
+        exists: false,
+        error: error.message
+      };
+    }
+
+    // Check services table
+    try {
+      const serviceCount = await prisma.service.count();
+      results.services = {
+        exists: true,
+        count: serviceCount
+      };
+    } catch (error) {
+      results.services = {
+        exists: false,
+        error: error.message
+      };
+    }
+
+    // Check bookings table
+    try {
+      const bookingCount = await prisma.booking.count();
+      results.bookings = {
+        exists: true,
+        count: bookingCount
+      };
+    } catch (error) {
+      results.bookings = {
+        exists: false,
+        error: error.message
+      };
+    }
+
+    res.json({
+      success: true,
+      message: 'Database tables check',
+      results,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error checking tables',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 module.exports = router;
