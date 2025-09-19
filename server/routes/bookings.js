@@ -679,19 +679,6 @@ router.post('/', handleBookingData, [
       }),
       requestId
     });
-  } catch (transactionError) {
-    console.error(`💥 [${requestId}] DATABASE TRANSACTION ERROR:`, {
-      error: transactionError.message,
-      stack: transactionError.stack,
-      code: transactionError.code
-    });
-
-    return res.status(500).json({
-      success: false,
-      error: 'DATABASE_TRANSACTION_ERROR',
-      message: 'Error during database transaction',
-      requestId
-    });
   }
 });
 
