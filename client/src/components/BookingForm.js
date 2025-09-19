@@ -250,24 +250,47 @@ const BookingForm = () => {
         }));
       }
       
-      // Add inspiration images
-      formData.inspirationImages.forEach((image, index) => {
-        formDataToSend.append(`inspirationImages`, image.file);
-      });
-      
-      // Add current hair images
-      Object.entries(formData.currentHairImages).forEach(([angle, imageData]) => {
-        if (imageData && imageData.file) {
-          formDataToSend.append(`currentHair_${angle}`, imageData.file);
-        }
-      });
+      // Add inspiration images (with error handling)
+      try {
+        formData.inspirationImages.forEach((image, index) => {
+          if (image && image.file) {
+            formDataToSend.append(`inspirationImages`, image.file);
+          }
+        });
+      } catch (imageError) {
+        console.error('Error processing inspiration images:', imageError);
+        toast.error('Error processing inspiration images. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Add current hair images (with error handling)
+      try {
+        Object.entries(formData.currentHairImages).forEach(([angle, imageData]) => {
+          if (imageData && imageData.file) {
+            formDataToSend.append(`currentHair_${angle}`, imageData.file);
+          }
+        });
+      } catch (imageError) {
+        console.error('Error processing current hair images:', imageError);
+        toast.error('Error processing current hair images. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
       // Create the booking with images
       const bookingResponse = await fetch('/api/bookings', {
         method: 'POST',
         body: formDataToSend,
+        signal: controller.signal
         // Don't set Content-Type header - let browser set it for FormData
       });
+
+      clearTimeout(timeoutId);
       
       const bookingData = await bookingResponse.json();
       
@@ -299,7 +322,17 @@ const BookingForm = () => {
       navigate('/thank-you?type=booking');
     } catch (error) {
       console.error('Booking error:', error);
-      const message = error.message || 'Failed to create booking';
+
+      // Handle specific error types
+      let message;
+      if (error.name === 'AbortError') {
+        message = 'Request timed out. Please check your connection and try again.';
+      } else if (error.message.includes('Failed to fetch')) {
+        message = 'Network error. Please check your connection and try again.';
+      } else {
+        message = error.message || 'Failed to create booking. Please try again.';
+      }
+
       toast.error(message);
     } finally {
       setLoading(false);

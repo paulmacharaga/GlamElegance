@@ -195,6 +195,7 @@ const EnhancedBookingForm = () => {
       if (!selectedService || !formData.customerName || !formData.customerEmail ||
           !formData.customerPhone || !formData.appointmentDate || !formData.appointmentTime) {
         setError('Please fill in all required fields');
+        setLoading(false); // Fix: Reset loading state on validation failure
         return;
       }
 
@@ -217,30 +218,59 @@ const EnhancedBookingForm = () => {
         formDataToSend.append('variantIds', JSON.stringify(selectedService.variantIds));
       }
 
-      // Add inspiration images
-      formData.inspirationImages.forEach((image, index) => {
-        formDataToSend.append(`inspirationImages`, image.file);
-      });
+      // Add inspiration images (with error handling)
+      try {
+        formData.inspirationImages.forEach((image, index) => {
+          if (image && image.file) {
+            formDataToSend.append(`inspirationImages`, image.file);
+          }
+        });
+      } catch (imageError) {
+        console.error('Error processing inspiration images:', imageError);
+        setError('Error processing inspiration images. Please try again.');
+        setLoading(false);
+        return;
+      }
 
-      // Add current hair images
-      Object.entries(formData.currentHairImages).forEach(([angle, imageData]) => {
-        if (imageData && imageData.file) {
-          formDataToSend.append(`currentHair_${angle}`, imageData.file);
-        }
-      });
+      // Add current hair images (with error handling)
+      try {
+        Object.entries(formData.currentHairImages).forEach(([angle, imageData]) => {
+          if (imageData && imageData.file) {
+            formDataToSend.append(`currentHair_${angle}`, imageData.file);
+          }
+        });
+      } catch (imageError) {
+        console.error('Error processing current hair images:', imageError);
+        setError('Error processing current hair images. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Create AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
       const response = await fetch('/api/bookings', {
         method: 'POST',
-        body: formDataToSend
+        body: formDataToSend,
+        signal: controller.signal
         // Don't set Content-Type header - let browser set it for FormData
       });
+
+      clearTimeout(timeoutId);
+
+      // Check if response is ok
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Server error' }));
+        throw new Error(errorData.message || `Server error: ${response.status}`);
+      }
 
       const data = await response.json();
 
       if (data.success) {
         toast.success('Booking created successfully!');
-        navigate('/thank-you', { 
-          state: { 
+        navigate('/thank-you', {
+          state: {
             booking: data.booking,
             service: selectedService
           }
@@ -250,7 +280,15 @@ const EnhancedBookingForm = () => {
       }
     } catch (error) {
       console.error('Error creating booking:', error);
-      setError('Failed to create booking. Please try again.');
+
+      // Handle specific error types
+      if (error.name === 'AbortError') {
+        setError('Request timed out. Please check your connection and try again.');
+      } else if (error.message.includes('Failed to fetch')) {
+        setError('Network error. Please check your connection and try again.');
+      } else {
+        setError(error.message || 'Failed to create booking. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
