@@ -601,95 +601,69 @@ router.get('/hierarchical-test', async (req, res) => {
   }
 });
 
-// Create hierarchical services tables
-router.post('/create-hierarchical-tables', async (req, res) => {
+// Create hierarchical services tables with proper SQL
+router.post('/migrate-hierarchical', async (req, res) => {
   try {
-    // Create the hierarchical services tables using raw SQL
-    await prisma.$executeRaw`
-      CREATE TABLE IF NOT EXISTS "service_categories" (
-        "id" TEXT NOT NULL,
-        "name" TEXT NOT NULL,
-        "description" TEXT,
-        "icon" TEXT,
-        "display_order" INTEGER NOT NULL DEFAULT 0,
-        "is_active" BOOLEAN NOT NULL DEFAULT true,
-        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "service_categories_pkey" PRIMARY KEY ("id")
-      );
-    `;
+    // Create service_categories table
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS service_categories (
+        id TEXT PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        description TEXT,
+        icon TEXT,
+        display_order INTEGER DEFAULT 0,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
 
-    await prisma.$executeRaw`
-      CREATE UNIQUE INDEX IF NOT EXISTS "service_categories_name_key" ON "service_categories"("name");
-    `;
+    // Create hierarchical_services table
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS hierarchical_services (
+        id TEXT PRIMARY KEY,
+        category_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        base_price DECIMAL(10,2) NOT NULL,
+        base_duration INTEGER NOT NULL,
+        is_active BOOLEAN DEFAULT true,
+        display_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (category_id) REFERENCES service_categories(id)
+      )
+    `);
 
-    await prisma.$executeRaw`
-      CREATE TABLE IF NOT EXISTS "hierarchical_services" (
-        "id" TEXT NOT NULL,
-        "category_id" TEXT NOT NULL,
-        "name" TEXT NOT NULL,
-        "description" TEXT,
-        "base_price" DOUBLE PRECISION NOT NULL,
-        "base_duration" INTEGER NOT NULL,
-        "is_active" BOOLEAN NOT NULL DEFAULT true,
-        "display_order" INTEGER NOT NULL DEFAULT 0,
-        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "hierarchical_services_pkey" PRIMARY KEY ("id")
-      );
-    `;
+    // Create service_variants table
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS service_variants (
+        id TEXT PRIMARY KEY,
+        service_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        type TEXT NOT NULL,
+        price_modifier DECIMAL(10,2) NOT NULL,
+        duration_modifier INTEGER DEFAULT 0,
+        is_active BOOLEAN DEFAULT true,
+        display_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (service_id) REFERENCES hierarchical_services(id)
+      )
+    `);
 
-    await prisma.$executeRaw`
-      CREATE TABLE IF NOT EXISTS "service_variants" (
-        "id" TEXT NOT NULL,
-        "service_id" TEXT NOT NULL,
-        "name" TEXT NOT NULL,
-        "description" TEXT,
-        "type" TEXT NOT NULL,
-        "price_modifier" DOUBLE PRECISION NOT NULL,
-        "duration_modifier" INTEGER NOT NULL DEFAULT 0,
-        "is_active" BOOLEAN NOT NULL DEFAULT true,
-        "display_order" INTEGER NOT NULL DEFAULT 0,
-        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "service_variants_pkey" PRIMARY KEY ("id")
-      );
-    `;
-
-    await prisma.$executeRaw`
-      CREATE TABLE IF NOT EXISTS "booking_service_variants" (
-        "id" TEXT NOT NULL,
-        "booking_id" TEXT NOT NULL,
-        "variant_id" TEXT NOT NULL,
-        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        CONSTRAINT "booking_service_variants_pkey" PRIMARY KEY ("id")
-      );
-    `;
-
-    // Add foreign key constraints
-    await prisma.$executeRaw`
-      ALTER TABLE "hierarchical_services"
-      ADD CONSTRAINT IF NOT EXISTS "hierarchical_services_category_id_fkey"
-      FOREIGN KEY ("category_id") REFERENCES "service_categories"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-    `;
-
-    await prisma.$executeRaw`
-      ALTER TABLE "service_variants"
-      ADD CONSTRAINT IF NOT EXISTS "service_variants_service_id_fkey"
-      FOREIGN KEY ("service_id") REFERENCES "hierarchical_services"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-    `;
-
-    await prisma.$executeRaw`
-      ALTER TABLE "booking_service_variants"
-      ADD CONSTRAINT IF NOT EXISTS "booking_service_variants_booking_id_fkey"
-      FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-    `;
-
-    await prisma.$executeRaw`
-      ALTER TABLE "booking_service_variants"
-      ADD CONSTRAINT IF NOT EXISTS "booking_service_variants_variant_id_fkey"
-      FOREIGN KEY ("variant_id") REFERENCES "service_variants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-    `;
+    // Create booking_service_variants table
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS booking_service_variants (
+        id TEXT PRIMARY KEY,
+        booking_id TEXT NOT NULL,
+        variant_id TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (booking_id) REFERENCES bookings(id),
+        FOREIGN KEY (variant_id) REFERENCES service_variants(id)
+      )
+    `);
 
     res.json({
       success: true,
