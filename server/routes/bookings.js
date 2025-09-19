@@ -86,9 +86,12 @@ router.post('/', upload.fields([
       return res.status(400).json({ message: 'Service not found or inactive' });
     }
 
-    // Validate selected variants belong to this service
+    // Validate selected variants and calculate total duration
+    let calculatedDuration = serviceDoc.baseDuration;
+    let validVariants = [];
+
     if (variantIds.length > 0) {
-      const validVariants = await prisma.serviceVariant.findMany({
+      validVariants = await prisma.serviceVariant.findMany({
         where: {
           id: { in: variantIds },
           serviceId: serviceId,
@@ -99,6 +102,13 @@ router.post('/', upload.fields([
       if (validVariants.length !== variantIds.length) {
         return res.status(400).json({ message: 'Invalid service variants selected' });
       }
+
+      // Calculate total duration including variant modifiers
+      const totalDurationModifier = validVariants.reduce((sum, variant) => {
+        return sum + (variant.durationModifier || 0);
+      }, 0);
+
+      calculatedDuration = serviceDoc.baseDuration + totalDurationModifier;
     }
 
     // Check for existing booking at same time
@@ -150,7 +160,7 @@ router.post('/', upload.fields([
           status: 'pending',
           notes: notes || '',
           totalPrice: null, // Will be set by staff when confirming
-          totalDuration: totalDuration || serviceDoc.baseDuration,
+          totalDuration: totalDuration || calculatedDuration,
           inspirationImages: inspirationImages.length > 0 ? inspirationImages : undefined,
           currentHairImages: Object.keys(currentHairImages).length > 0 ? currentHairImages : undefined
         }
