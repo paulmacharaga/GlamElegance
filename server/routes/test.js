@@ -583,15 +583,125 @@ router.get('/check-tables', async (req, res) => {
 // Test hierarchical services route
 router.get('/hierarchical-test', async (req, res) => {
   try {
+    // Test if ServiceCategory model exists
+    const categoryCount = await prisma.serviceCategory.count();
+
     res.json({
       success: true,
-      message: 'Hierarchical services route is working',
+      message: 'Hierarchical services test successful',
+      categoryCount,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: 'Error in hierarchical test',
+      error: error.message
+    });
+  }
+});
+
+// Create hierarchical services tables
+router.post('/create-hierarchical-tables', async (req, res) => {
+  try {
+    // Create the hierarchical services tables using raw SQL
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "service_categories" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "description" TEXT,
+        "icon" TEXT,
+        "display_order" INTEGER NOT NULL DEFAULT 0,
+        "is_active" BOOLEAN NOT NULL DEFAULT true,
+        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "service_categories_pkey" PRIMARY KEY ("id")
+      );
+    `;
+
+    await prisma.$executeRaw`
+      CREATE UNIQUE INDEX IF NOT EXISTS "service_categories_name_key" ON "service_categories"("name");
+    `;
+
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "hierarchical_services" (
+        "id" TEXT NOT NULL,
+        "category_id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "description" TEXT,
+        "base_price" DOUBLE PRECISION NOT NULL,
+        "base_duration" INTEGER NOT NULL,
+        "is_active" BOOLEAN NOT NULL DEFAULT true,
+        "display_order" INTEGER NOT NULL DEFAULT 0,
+        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "hierarchical_services_pkey" PRIMARY KEY ("id")
+      );
+    `;
+
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "service_variants" (
+        "id" TEXT NOT NULL,
+        "service_id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "description" TEXT,
+        "type" TEXT NOT NULL,
+        "price_modifier" DOUBLE PRECISION NOT NULL,
+        "duration_modifier" INTEGER NOT NULL DEFAULT 0,
+        "is_active" BOOLEAN NOT NULL DEFAULT true,
+        "display_order" INTEGER NOT NULL DEFAULT 0,
+        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "service_variants_pkey" PRIMARY KEY ("id")
+      );
+    `;
+
+    await prisma.$executeRaw`
+      CREATE TABLE IF NOT EXISTS "booking_service_variants" (
+        "id" TEXT NOT NULL,
+        "booking_id" TEXT NOT NULL,
+        "variant_id" TEXT NOT NULL,
+        "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "booking_service_variants_pkey" PRIMARY KEY ("id")
+      );
+    `;
+
+    // Add foreign key constraints
+    await prisma.$executeRaw`
+      ALTER TABLE "hierarchical_services"
+      ADD CONSTRAINT IF NOT EXISTS "hierarchical_services_category_id_fkey"
+      FOREIGN KEY ("category_id") REFERENCES "service_categories"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    `;
+
+    await prisma.$executeRaw`
+      ALTER TABLE "service_variants"
+      ADD CONSTRAINT IF NOT EXISTS "service_variants_service_id_fkey"
+      FOREIGN KEY ("service_id") REFERENCES "hierarchical_services"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    `;
+
+    await prisma.$executeRaw`
+      ALTER TABLE "booking_service_variants"
+      ADD CONSTRAINT IF NOT EXISTS "booking_service_variants_booking_id_fkey"
+      FOREIGN KEY ("booking_id") REFERENCES "bookings"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    `;
+
+    await prisma.$executeRaw`
+      ALTER TABLE "booking_service_variants"
+      ADD CONSTRAINT IF NOT EXISTS "booking_service_variants_variant_id_fkey"
+      FOREIGN KEY ("variant_id") REFERENCES "service_variants"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    `;
+
+    res.json({
+      success: true,
+      message: 'Hierarchical services tables created successfully',
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error creating hierarchical tables:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create hierarchical services tables',
       error: error.message
     });
   }
