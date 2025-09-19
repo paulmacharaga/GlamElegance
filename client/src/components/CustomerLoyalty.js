@@ -49,11 +49,18 @@ const CustomerLoyalty = ({ bookingEmail, onRedeemSuccess }) => {
   const fetchLoyaltyProgram = async () => {
     setProgramLoading(true);
     try {
+      console.log('Fetching loyalty program information...');
       const response = await fetch('/api/loyalty/program');
+      console.log('Loyalty program API response status:', response.status);
+      
       const data = await response.json();
+      console.log('Loyalty program API response data:', data);
+      
       setProgramInfo(data);
+      console.log('Loyalty program info set successfully');
     } catch (error) {
       console.error('Error fetching loyalty program:', error);
+      console.error('Error details:', { name: error.name, message: error.message, stack: error.stack });
       // Don't show error for program info, it's not critical
     } finally {
       setProgramLoading(false);
@@ -65,12 +72,29 @@ const CustomerLoyalty = ({ bookingEmail, onRedeemSuccess }) => {
     setError(null);
     
     try {
-      const response = await fetch(`/api/loyalty/customer/${customerEmail}`);
+      console.log(`Fetching loyalty information for customer: ${customerEmail}`);
+      const url = `/api/loyalty/customer/${customerEmail}`;
+      console.log('Request URL:', url);
+      
+      const response = await fetch(url);
+      console.log('Customer loyalty API response status:', response.status);
+      
       const data = await response.json();
-      setLoyaltyInfo(data);
+      console.log('Customer loyalty API response data:', data);
+      
+      if (response.ok) {
+        console.log('Customer loyalty data retrieved successfully');
+        setLoyaltyInfo(data);
+      } else {
+        console.error('Customer loyalty API error:', data);
+        throw new Error(data.message || 'Failed to fetch customer loyalty');
+      }
     } catch (error) {
       console.error('Error fetching customer loyalty:', error);
+      console.error('Error details:', { name: error.name, message: error.message, stack: error.stack });
+      
       if (error.response && error.response.status === 404) {
+        console.log('Customer not found in loyalty program');
         setError('Customer not found in loyalty program. Complete a booking to join!');
       } else {
         setError('Failed to load loyalty information. Please try again.');
@@ -99,16 +123,25 @@ const CustomerLoyalty = ({ bookingEmail, onRedeemSuccess }) => {
 
   const handleRedeem = async () => {
     try {
-      const response = await fetch(`/api/loyalty/customer/${email}/redeem`, {
+      console.log(`Redeeming loyalty points for customer: ${email}`);
+      const url = `/api/loyalty/customer/${email}/redeem`;
+      console.log('Request URL:', url);
+      
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
+      console.log('Redeem API response status:', response.status);
+      
       const data = await response.json();
+      console.log('Redeem API response data:', data);
       
       if (!response.ok) {
+        console.error('Redeem API error:', data);
         throw new Error(data.message || 'Failed to redeem points');
       }
       
+      console.log('Points redeemed successfully');
       toast.success('Points redeemed successfully!');
       setRedeemDialogOpen(false);
       
@@ -117,10 +150,12 @@ const CustomerLoyalty = ({ bookingEmail, onRedeemSuccess }) => {
       
       // Notify parent component if needed
       if (onRedeemSuccess) {
-        onRedeemSuccess(response.data.rewardAmount);
+        console.log('Notifying parent component of successful redemption with amount:', data.rewardAmount);
+        onRedeemSuccess(data.rewardAmount);
       }
     } catch (error) {
       console.error('Error redeeming points:', error);
+      console.error('Error details:', { name: error.name, message: error.message, stack: error.stack });
       toast.error(error.response?.data?.message || 'Failed to redeem points');
     }
   };

@@ -1039,4 +1039,76 @@ router.post('/check-booking-schema', async (req, res) => {
   }
 });
 
+// Simple test endpoint
+router.get('/simple', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Simple test endpoint working',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Test booking endpoint for debugging
+router.post('/booking-debug', async (req, res) => {
+  try {
+    console.log('🔍 Booking debug request received');
+    console.log('Request body type:', typeof req.body);
+    console.log('Request content-type:', req.headers['content-type']);
+    console.log('Request body keys:', Object.keys(req.body));
+    console.log('Request body:', req.body);
+    
+    // Extract request data
+    const {
+      customerName,
+      customerEmail,
+      customerPhone,
+      serviceId,
+      bookingDate,
+      bookingTime,
+      notes
+    } = req.body;
+    
+    // Log extracted data
+    console.log('Extracted data:', {
+      customerName,
+      customerEmail,
+      customerPhone,
+      serviceId,
+      bookingDate,
+      bookingTime,
+      notes
+    });
+    
+    // Check if service exists
+    let service = null;
+    try {
+      service = await prisma.service.findUnique({
+        where: { id: serviceId },
+        include: { category: true }
+      });
+      console.log('Service found:', service ? 'Yes' : 'No');
+    } catch (serviceError) {
+      console.error('Service lookup error:', serviceError);
+    }
+    
+    // Return success response
+    res.json({
+      success: true,
+      message: 'Booking debug successful',
+      receivedData: req.body,
+      serviceFound: !!service,
+      serviceDetails: service,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Booking debug error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Booking debug failed',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 module.exports = router;

@@ -46,8 +46,8 @@ model Service {
   displayOrder Int?             @default(0)
   createdAt    DateTime?        @default(now()) @db.Timestamp(6)
   updatedAt    DateTime?        @default(now()) @updatedAt @db.Timestamp(6)
-  variants     ServiceVariant[]
   bookings     Booking[]
+  variants     ServiceVariant[]
   category     ServiceCategory  @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("services")
@@ -90,35 +90,28 @@ model Staff {
 }
 
 model Booking {
-  id              String                  @id @default(cuid())
-  customerName    String
-  customerEmail   String
-  customerPhone   String
-  customerId      String?
-  serviceId       String
-  staffId         String?
-  bookingDate     DateTime
-  bookingTime     String
-  status          String                  @default("pending")
-  notes           String?
-  totalPrice      Float?                  // Set by staff when confirming booking
-  totalDuration   Int?                    @default(60)
-
-  // Image storage for booking inspiration and current hair photos
-  inspirationImages String[]              @default([])  // Array of image URLs/paths
-  currentHairImages Json?                             // JSON object with front/back/top images
-
-  // Loyalty program opt-in
-  joinLoyalty     Boolean                 @default(false)  // Customer opted to join loyalty program
-
-  createdAt       DateTime                @default(now())
-  updatedAt       DateTime                @default(now()) @updatedAt
-
-  // Relations
-  serviceVariants BookingServiceVariant[]
-  customer        Customer?               @relation(fields: [customerId], references: [id])
-  service         Service                 @relation(fields: [serviceId], references: [id])
-  staff           Staff?                  @relation(fields: [staffId], references: [id])
+  id                String                  @id @default(cuid())
+  customerName      String
+  customerEmail     String
+  customerPhone     String
+  customerId        String?
+  serviceId         String
+  staffId           String?
+  bookingDate       DateTime
+  bookingTime       String
+  status            String                  @default("pending")
+  notes             String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @default(now()) @updatedAt
+  totalDuration     Int?                    @default(60)
+  currentHairImages Json?
+  inspirationImages String[]                @default([])
+  joinLoyalty       Boolean                 @default(false)
+  totalPrice        Float?
+  serviceVariants   BookingServiceVariant[]
+  customer          Customer?               @relation(fields: [customerId], references: [id])
+  service           Service                 @relation(fields: [serviceId], references: [id])
+  staff             Staff?                  @relation(fields: [staffId], references: [id])
 
   @@map("bookings")
 }

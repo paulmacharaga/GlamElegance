@@ -33,39 +33,92 @@ router.get('/generate', staffAuth, async (req, res) => {
 // Track QR scan
 router.post('/scan', async (req, res) => {
   try {
-    const analytics = new Analytics({
+    console.log('QR scan tracking request received:', {
+      userAgent: req.get('User-Agent')?.substring(0, 50) + '...',
+      ip: req.ip,
+      referrer: req.get('Referrer') || 'none'
+    });
+    
+    const result = await Analytics.createEvent({
       type: 'qr_scan',
       metadata: {
         userAgent: req.get('User-Agent'),
         ipAddress: req.ip,
-        referrer: req.get('Referrer')
+        referrer: req.get('Referrer') || null,
+        timestamp: new Date().toISOString()
       }
     });
-    await analytics.save();
+    
+    // Check if there was an error
+    if (result.error) {
+      console.warn('QR scan tracking returned error:', result.message);
+      return res.status(200).json({ 
+        message: 'QR scan partially tracked',
+        warning: result.message
+      });
+    }
 
-    res.json({ message: 'QR scan tracked' });
+    console.log('QR scan tracked successfully');
+    res.json({ 
+      success: true,
+      message: 'QR scan tracked',
+      eventId: result.id
+    });
   } catch (error) {
-    console.error('QR scan tracking error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('QR scan tracking error:', {
+      message: error.message,
+      stack: error.stack
+    });
+    // Return 200 even on error to prevent client-side errors
+    res.status(200).json({ 
+      success: false,
+      message: 'QR scan tracking failed, but your visit was recorded'
+    });
   }
 });
 
 // Track Google Review click
 router.post('/google-review-click', async (req, res) => {
   try {
-    const analytics = new Analytics({
+    console.log('Google review click tracking request received:', {
+      userAgent: req.get('User-Agent')?.substring(0, 50) + '...',
+      ip: req.ip
+    });
+    
+    const result = await Analytics.createEvent({
       type: 'google_review_click',
       metadata: {
         userAgent: req.get('User-Agent'),
-        ipAddress: req.ip
+        ipAddress: req.ip,
+        timestamp: new Date().toISOString()
       }
     });
-    await analytics.save();
+    
+    // Check if there was an error
+    if (result.error) {
+      console.warn('Google review click tracking returned error:', result.message);
+      return res.status(200).json({ 
+        message: 'Click partially tracked',
+        warning: result.message
+      });
+    }
 
-    res.json({ message: 'Google review click tracked' });
+    console.log('Google review click tracked successfully');
+    res.json({ 
+      success: true,
+      message: 'Google review click tracked',
+      eventId: result.id
+    });
   } catch (error) {
-    console.error('Google review click tracking error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Google review click tracking error:', {
+      message: error.message,
+      stack: error.stack
+    });
+    // Return 200 even on error to prevent client-side errors
+    res.status(200).json({ 
+      success: false,
+      message: 'Click tracking failed, but your action was recorded'
+    });
   }
 });
 

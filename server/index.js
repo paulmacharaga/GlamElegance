@@ -11,6 +11,7 @@ const session = require('express-session');
 
 // Import routes
 const authRoutes = require('./routes/auth');
+const customerAuthRoutes = require('./routes/customer-auth');
 const bookingRoutes = require('./routes/bookings');
 const feedbackRoutes = require('./routes/feedback');
 const qrRoutes = require('./routes/qr');
@@ -40,8 +41,16 @@ app.use(helmet({
 }));
 app.use(cors({
   origin: function (origin, callback) {
+    console.log('CORS check - Origin:', origin, 'NODE_ENV:', process.env.NODE_ENV);
+    
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
+
+    // Always allow localhost requests regardless of port
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      console.log('Origin allowed: localhost request');
+      return callback(null, true);
+    }
 
     // In production, allow the main domain and deployment URLs
     const allowedOrigins = [
@@ -53,20 +62,26 @@ app.use(cors({
       process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
     ].filter(Boolean);
 
+    console.log('Allowed origins:', allowedOrigins);
+
     if (allowedOrigins.includes(origin)) {
+      console.log('Origin allowed by allowedOrigins list');
       return callback(null, true);
     }
 
     // Allow any Vercel deployment of this project
     if (origin && origin.includes('glam-elegance') && origin.includes('vercel.app')) {
+      console.log('Origin allowed by Vercel pattern');
       return callback(null, true);
     }
 
     // For development, be more permissive
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== 'production' || !process.env.NODE_ENV) {
+      console.log('Development mode - allowing origin');
       return callback(null, true);
     }
 
+    console.log('CORS rejected origin:', origin);
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
@@ -131,6 +146,7 @@ connectDB();
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/auth/customer', customerAuthRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/qr', qrRoutes);

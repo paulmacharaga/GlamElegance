@@ -14,15 +14,14 @@ import {
   Icon,
   CircularProgress,
   Alert,
-  Divider,
   FormControl,
-  FormLabel,
   RadioGroup,
   FormControlLabel,
   Radio,
   Checkbox,
   FormGroup
 } from '@mui/material';
+// Removed unused imports: Divider, FormLabel
 import { ArrowBack, ArrowForward, ShoppingCart } from '@mui/icons-material';
 
 const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
@@ -37,12 +36,8 @@ const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const steps = [
-    'Select Service Category',
-    'Choose Service',
-    'Customize Options',
-    'Review & Confirm'
-  ];
+  // Removed unused steps variable
+  // These steps are visually represented in the UI but not referenced programmatically
 
   // Fetch service categories
   useEffect(() => {
@@ -52,16 +47,65 @@ const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/hierarchical-services/categories');
-      const data = await response.json();
+      console.log('Fetching service categories...');
+      console.log('Request URL:', '/api/hierarchical-services/categories');
       
-      if (data.success) {
-        setCategories(data.categories);
-      } else {
-        setError('Failed to load service categories');
+      // Add detailed debugging for the fetch request
+      try {
+        const response = await fetch('/api/hierarchical-services/categories');
+        console.log('Categories API response status:', response.status);
+        console.log('Categories API response headers:', {
+          contentType: response.headers.get('content-type'),
+          contentLength: response.headers.get('content-length')
+        });
+        
+        if (!response.ok) {
+          console.error('Categories API error response:', {
+            status: response.status,
+            statusText: response.statusText
+          });
+          
+          // Try to get the error message from the response
+          try {
+            const errorText = await response.text();
+            console.error('Error response text:', errorText);
+            setError(`Failed to load service categories: ${response.status} ${response.statusText}`);
+          } catch (textError) {
+            console.error('Error getting response text:', textError);
+            setError(`Failed to load service categories: ${response.status} ${response.statusText}`);
+          }
+          setLoading(false);
+          return;
+        }
+        
+        // Try to parse the JSON response
+        try {
+          const data = await response.json();
+          console.log('Categories API response data:', data);
+          
+          if (data.success) {
+            console.log('Categories fetched successfully:', data.categories?.length || 0, 'categories');
+            setCategories(data.categories || []);
+          } else {
+            console.error('Failed to load categories - API returned error:', data);
+            setError(`Failed to load service categories: ${data.message || 'Unknown error'}`);
+          }
+        } catch (jsonError) {
+          console.error('Error parsing JSON response:', jsonError);
+          setError('Failed to parse service categories response');
+        }
+      } catch (fetchError) {
+        console.error('Fetch error:', fetchError);
+        console.error('Fetch error details:', { 
+          name: fetchError.name, 
+          message: fetchError.message, 
+          stack: fetchError.stack 
+        });
+        setError(`Network error: ${fetchError.message}`);
       }
     } catch (error) {
-      console.error('Error fetching categories:', error);
+      console.error('Error in fetchCategories:', error);
+      console.error('Error details:', { name: error.name, message: error.message, stack: error.stack });
       setError('Failed to load service categories');
     } finally {
       setLoading(false);
@@ -71,17 +115,28 @@ const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
   const fetchCategoryServices = async (categoryId) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/hierarchical-services/categories/${categoryId}/services`);
+      console.log(`Fetching services for category ID: ${categoryId}...`);
+      
+      const url = `/api/hierarchical-services/categories/${categoryId}/services`;
+      console.log('Request URL:', url);
+      
+      const response = await fetch(url);
+      console.log('Services API response status:', response.status);
+      
       const data = await response.json();
+      console.log('Services API response data:', data);
       
       if (data.success) {
+        console.log(`Services fetched successfully: ${data.services.length} services for category ${data.category.name}`);
         setServices(data.services);
         setSelectedCategory(data.category);
       } else {
+        console.error('Failed to load services - API returned error:', data);
         setError('Failed to load services');
       }
     } catch (error) {
       console.error('Error fetching services:', error);
+      console.error('Error details:', { name: error.name, message: error.message, stack: error.stack });
       setError('Failed to load services');
     } finally {
       setLoading(false);
@@ -91,18 +146,29 @@ const HierarchicalServiceSelector = ({ onServiceSelected, onBack }) => {
   const fetchServiceDetails = async (serviceId) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/hierarchical-services/services/${serviceId}`);
+      console.log(`Fetching details for service ID: ${serviceId}...`);
+      
+      const url = `/api/hierarchical-services/services/${serviceId}`;
+      console.log('Request URL:', url);
+      
+      const response = await fetch(url);
+      console.log('Service details API response status:', response.status);
+      
       const data = await response.json();
+      console.log('Service details API response data:', data);
       
       if (data.success) {
+        console.log('Service details fetched successfully:', data.service);
         setServiceDetails(data.service);
         setSelectedVariants({});
         // No price calculation for customers
       } else {
+        console.error('Failed to load service details - API returned error:', data);
         setError('Failed to load service details');
       }
     } catch (error) {
       console.error('Error fetching service details:', error);
+      console.error('Error details:', { name: error.name, message: error.message, stack: error.stack });
       setError('Failed to load service details');
     } finally {
       setLoading(false);
