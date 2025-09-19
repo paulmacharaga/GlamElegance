@@ -55,8 +55,14 @@ router.post('/', upload.fields([
   body('bookingTime').optional().notEmpty().withMessage('Appointment time is required')
 ], async (req, res) => {
   try {
+    console.log('📝 Booking creation request:', {
+      body: req.body,
+      files: req.files ? Object.keys(req.files) : 'none'
+    });
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
@@ -299,8 +305,17 @@ router.post('/', upload.fields([
       booking
     });
   } catch (error) {
-    console.error('Booking creation error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Booking creation error:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+      code: error.code,
+      meta: error.meta
+    });
+    res.status(500).json({
+      message: 'Server error',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
