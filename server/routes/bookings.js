@@ -66,43 +66,19 @@ router.post('/', handleBookingData, [
   body('appointmentTime').optional().notEmpty().withMessage('Appointment time is required'),
   body('bookingTime').optional().notEmpty().withMessage('Appointment time is required')
 ], async (req, res) => {
-  const startTime = Date.now();
   const requestId = `booking_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
   try {
-    console.log(`\n🚀 [${requestId}] BOOKING CREATION STARTED`);
-    console.log(`📝 [${requestId}] Request Details:`, {
-      method: req.method,
-      contentType: req.headers['content-type'],
-      bodyKeys: Object.keys(req.body || {}),
-      filesPresent: req.files ? Object.keys(req.files) : 'none',
-      bodySize: JSON.stringify(req.body || {}).length,
-      timestamp: new Date().toISOString()
+    console.log(`🚀 [${requestId}] Booking creation started`);
+    console.log(`📝 [${requestId}] Request:`, {
+      body: Object.keys(req.body || {}),
+      files: req.files ? Object.keys(req.files) : 'none'
     });
 
-    console.log(`📋 [${requestId}] Request Body:`, JSON.stringify(req.body, null, 2));
-
-    if (req.files) {
-      console.log(`📎 [${requestId}] Files Uploaded:`, Object.entries(req.files).map(([key, files]) => ({
-        field: key,
-        count: Array.isArray(files) ? files.length : 1,
-        filenames: Array.isArray(files) ? files.map(f => f.filename) : [files.filename]
-      })));
-    }
-
-    // Validation check with detailed logging
-    console.log(`✅ [${requestId}] Running validation checks...`);
+    // Validation check
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log(`❌ [${requestId}] VALIDATION FAILED:`, {
-        errorCount: errors.array().length,
-        errors: errors.array().map(err => ({
-          field: err.path || err.param,
-          message: err.msg,
-          value: err.value,
-          location: err.location
-        }))
-      });
+      console.log(`❌ [${requestId}] Validation failed:`, errors.array().length, 'errors');
 
       return res.status(400).json({
         success: false,
@@ -110,19 +86,15 @@ router.post('/', handleBookingData, [
         message: 'Validation failed for one or more fields',
         details: errors.array().map(err => ({
           field: err.path || err.param,
-          message: err.msg,
-          value: err.value
+          message: err.msg
         })),
         requestId
       });
     }
 
-    console.log(`✅ [${requestId}] Validation passed successfully`);
+    console.log(`✅ [${requestId}] Validation passed`);
   } catch (validationError) {
-    console.error(`💥 [${requestId}] VALIDATION SETUP ERROR:`, {
-      error: validationError.message,
-      stack: validationError.stack
-    });
+    console.error(`💥 [${requestId}] Validation error:`, validationError.message);
 
     return res.status(500).json({
       success: false,
@@ -133,7 +105,7 @@ router.post('/', handleBookingData, [
   }
 
   try {
-    console.log(`🔍 [${requestId}] Extracting and processing request data...`);
+    console.log(`🔍 [${requestId}] Processing request data...`);
 
     const {
       customerName,
@@ -151,68 +123,41 @@ router.post('/', handleBookingData, [
       joinLoyalty
     } = req.body;
 
-    console.log(`📊 [${requestId}] Extracted Fields:`, {
-      customerName: customerName ? `"${customerName}"` : 'MISSING',
-      customerEmail: customerEmail ? `"${customerEmail}"` : 'MISSING',
-      customerPhone: customerPhone ? `"${customerPhone}"` : 'MISSING',
-      serviceId: serviceId || 'MISSING',
-      service: service || 'N/A (legacy)',
-      variantIds: Array.isArray(variantIds) ? `[${variantIds.length} items]` : variantIds,
-      bookingDate: bookingDate || 'MISSING',
-      appointmentDate: appointmentDate || 'N/A (legacy)',
-      bookingTime: bookingTime || 'MISSING',
-      appointmentTime: appointmentTime || 'N/A (legacy)',
-      totalDuration: totalDuration || 'not provided',
-      notes: notes ? `"${notes.substring(0, 50)}${notes.length > 50 ? '...' : ''}"` : 'empty',
-      joinLoyalty: joinLoyalty
-    });
-
     // Handle field name variations for backward compatibility
     const finalServiceId = serviceId || service;
     const finalBookingDate = bookingDate || appointmentDate;
     const finalBookingTime = bookingTime || appointmentTime;
 
-    console.log(`🔄 [${requestId}] Field Mapping Applied:`, {
-      finalServiceId: finalServiceId || 'STILL MISSING',
-      finalBookingDate: finalBookingDate || 'STILL MISSING',
-      finalBookingTime: finalBookingTime || 'STILL MISSING'
+    console.log(`🔄 [${requestId}] Field mapping:`, {
+      serviceId: finalServiceId ? 'OK' : 'MISSING',
+      bookingDate: finalBookingDate ? 'OK' : 'MISSING',
+      bookingTime: finalBookingTime ? 'OK' : 'MISSING'
     });
 
-    // Validate required fields after field mapping with detailed logging
-    console.log(`✅ [${requestId}] Validating required fields...`);
+    // Validate required fields
     const missingFields = [];
-
     if (!customerName) missingFields.push('customerName');
     if (!customerEmail) missingFields.push('customerEmail');
     if (!customerPhone) missingFields.push('customerPhone');
-    if (!finalServiceId) missingFields.push('serviceId/service');
-    if (!finalBookingDate) missingFields.push('bookingDate/appointmentDate');
-    if (!finalBookingTime) missingFields.push('bookingTime/appointmentTime');
+    if (!finalServiceId) missingFields.push('serviceId');
+    if (!finalBookingDate) missingFields.push('bookingDate');
+    if (!finalBookingTime) missingFields.push('bookingTime');
 
     if (missingFields.length > 0) {
-      console.log(`❌ [${requestId}] MISSING REQUIRED FIELDS:`, {
-        count: missingFields.length,
-        fields: missingFields,
-        providedFields: Object.keys(req.body)
-      });
+      console.log(`❌ [${requestId}] Missing fields:`, missingFields);
 
       return res.status(400).json({
         success: false,
         error: 'MISSING_REQUIRED_FIELDS',
         message: `Missing required fields: ${missingFields.join(', ')}`,
         missingFields,
-        providedFields: Object.keys(req.body),
         requestId
       });
     }
 
-    console.log(`✅ [${requestId}] All required fields validated successfully`);
+    console.log(`✅ [${requestId}] Required fields validated`);
   } catch (fieldProcessingError) {
-    console.error(`💥 [${requestId}] FIELD PROCESSING ERROR:`, {
-      error: fieldProcessingError.message,
-      stack: fieldProcessingError.stack,
-      requestBody: req.body
-    });
+    console.error(`💥 [${requestId}] Field processing error:`, fieldProcessingError.message);
 
     return res.status(500).json({
       success: false,
