@@ -38,13 +38,25 @@ const upload = multer({
 
 const router = express.Router();
 
-// Create new booking with image uploads
-router.post('/', upload.fields([
-  { name: 'inspirationImages', maxCount: 10 },
-  { name: 'currentHair_front', maxCount: 1 },
-  { name: 'currentHair_back', maxCount: 1 },
-  { name: 'currentHair_top', maxCount: 1 }
-]), [
+// Middleware to handle both JSON and FormData
+const handleBookingData = (req, res, next) => {
+  // Check if it's JSON request
+  if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
+    // For JSON requests, skip multer
+    return next();
+  } else {
+    // For FormData requests, use multer
+    return upload.fields([
+      { name: 'inspirationImages', maxCount: 10 },
+      { name: 'currentHair_front', maxCount: 1 },
+      { name: 'currentHair_back', maxCount: 1 },
+      { name: 'currentHair_top', maxCount: 1 }
+    ])(req, res, next);
+  }
+};
+
+// Create new booking with optional image uploads
+router.post('/', handleBookingData, [
   body('customerName').notEmpty().withMessage('Customer name is required'),
   body('customerEmail').isEmail().withMessage('Valid email is required'),
   body('customerPhone').notEmpty().withMessage('Phone number is required'),
@@ -152,7 +164,7 @@ router.post('/', upload.fields([
     }
 
 
-    // Process uploaded images
+    // Process uploaded images (for FormData requests)
     const inspirationImages = [];
     const currentHairImages = {};
 
@@ -172,6 +184,8 @@ router.post('/', upload.fields([
         }
       });
     }
+
+    // For JSON requests, images will be empty arrays/objects (handled by database defaults)
 
     // Start a transaction
     const booking = await prisma.$transaction(async (prisma) => {
