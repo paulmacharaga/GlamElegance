@@ -70,15 +70,11 @@ router.post('/', handleBookingData, [
 
   try {
     console.log(`🚀 [${requestId}] Booking creation started`);
-    console.log(`📝 [${requestId}] Request:`, {
-      body: Object.keys(req.body || {}),
-      files: req.files ? Object.keys(req.files) : 'none'
-    });
 
     // Validation check
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log(`❌ [${requestId}] Validation failed:`, errors.array().length, 'errors');
+      console.log(`❌ [${requestId}] Validation failed`);
 
       return res.status(400).json({
         success: false,
@@ -92,19 +88,7 @@ router.post('/', handleBookingData, [
       });
     }
 
-    console.log(`✅ [${requestId}] Validation passed`);
-  } catch (validationError) {
-    console.error(`💥 [${requestId}] Validation error:`, validationError.message);
-
-    return res.status(500).json({
-      success: false,
-      error: 'VALIDATION_SETUP_ERROR',
-      message: 'Error in validation setup',
-      requestId
-    });
-  }
-
-  try {
+    // Extract request data
     console.log(`🔍 [${requestId}] Processing request data...`);
 
     const {
