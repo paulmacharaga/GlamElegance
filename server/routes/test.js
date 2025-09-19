@@ -803,7 +803,6 @@ router.get('/check-users', async (req, res) => {
 // Create admin@glamelegance.com user
 router.post('/create-glam-admin', async (req, res) => {
   try {
-    const bcrypt = require('bcrypt');
 
     // Check if user already exists
     const existingUser = await prisma.user.findFirst({
@@ -864,6 +863,55 @@ router.post('/create-glam-admin', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to create admin user',
+      error: error.message
+    });
+  }
+});
+
+// Check both user and staff tables
+router.get('/check-all-users', async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        createdAt: true
+      }
+    });
+
+    const staff = await prisma.staff.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true
+      }
+    });
+
+    res.json({
+      success: true,
+      users: {
+        count: users.length,
+        records: users
+      },
+      staff: {
+        count: staff.length,
+        records: staff
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error checking all users:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to check users',
       error: error.message
     });
   }
