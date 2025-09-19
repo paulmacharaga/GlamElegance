@@ -917,4 +917,34 @@ router.get('/check-all-users', async (req, res) => {
   }
 });
 
+// Make basePrice and baseDuration optional in services table
+router.post('/make-service-fields-optional', async (req, res) => {
+  try {
+    // Update the services table to make basePrice and baseDuration nullable
+    await prisma.$executeRaw`
+      ALTER TABLE services
+      ALTER COLUMN "basePrice" DROP NOT NULL,
+      ALTER COLUMN "baseDuration" DROP NOT NULL
+    `;
+
+    res.json({
+      success: true,
+      message: 'Service fields updated to be optional',
+      changes: [
+        'basePrice is now nullable (optional)',
+        'baseDuration is now nullable (optional)'
+      ],
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error updating service fields:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update service fields',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

@@ -277,8 +277,8 @@ const AdminHierarchicalServices = () => {
         },
         body: JSON.stringify({
           ...serviceForm,
-          basePrice: parseFloat(serviceForm.basePrice),
-          baseDuration: parseInt(serviceForm.baseDuration)
+          basePrice: serviceForm.basePrice ? parseFloat(serviceForm.basePrice) : null,
+          baseDuration: serviceForm.baseDuration ? parseInt(serviceForm.baseDuration) : null
         })
       });
       
@@ -489,8 +489,8 @@ const AdminHierarchicalServices = () => {
                         )}
                       </TableCell>
                       <TableCell>{service.category?.name}</TableCell>
-                      <TableCell>${service.basePrice}</TableCell>
-                      <TableCell>{service.baseDuration} min</TableCell>
+                      <TableCell>{service.basePrice ? `$${service.basePrice}` : 'Variable'}</TableCell>
+                      <TableCell>{service.baseDuration ? `${service.baseDuration} min` : 'Variable'}</TableCell>
                       <TableCell>{service.displayOrder}</TableCell>
                       <TableCell>
                         <IconButton onClick={() => openServiceDialog(service)} size="small">
@@ -626,25 +626,25 @@ const AdminHierarchicalServices = () => {
             <Grid item xs={6}>
               <TextField
                 fullWidth
-                label="Base Price ($)"
+                label="Base Price ($) - Optional"
                 type="number"
                 value={serviceForm.basePrice}
                 onChange={(e) => setServiceForm(prev => ({ ...prev, basePrice: e.target.value }))}
                 margin="normal"
-                required
                 inputProps={{ min: 0, step: 0.01 }}
+                helperText="Leave empty if pricing varies"
               />
             </Grid>
             <Grid item xs={6}>
               <TextField
                 fullWidth
-                label="Duration (minutes)"
+                label="Duration (minutes) - Optional"
                 type="number"
                 value={serviceForm.baseDuration}
                 onChange={(e) => setServiceForm(prev => ({ ...prev, baseDuration: e.target.value }))}
                 margin="normal"
-                required
                 inputProps={{ min: 1, step: 1 }}
+                helperText="Leave empty if duration varies"
               />
             </Grid>
           </Grid>
@@ -664,7 +664,7 @@ const AdminHierarchicalServices = () => {
           <Button
             onClick={saveServiceDialog}
             variant="contained"
-            disabled={!serviceForm.name.trim() || !serviceForm.categoryId || !serviceForm.basePrice || !serviceForm.baseDuration}
+            disabled={!serviceForm.name.trim() || !serviceForm.categoryId}
           >
             {serviceDialog.isEdit ? 'Update' : 'Create'}
           </Button>

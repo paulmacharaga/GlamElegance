@@ -41,8 +41,8 @@ model Service {
   name        String
   description String?
   categoryId  String
-  basePrice   Float    // Base price for the service
-  baseDuration Int     // Base duration in minutes
+  basePrice   Float?   // Base price for the service (optional - can be set per booking)
+  baseDuration Int?    // Base duration in minutes (optional - can vary per booking)
   isActive    Boolean  @default(true)
   displayOrder Int     @default(0)
   createdAt   DateTime @default(now())
