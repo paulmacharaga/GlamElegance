@@ -367,4 +367,77 @@ router.post('/simple-login', async (req, res) => {
   }
 });
 
+// Check DATABASE_URL format and connection details
+router.get('/database-url-check', async (req, res) => {
+  try {
+    const databaseUrl = process.env.DATABASE_URL;
+
+    if (!databaseUrl) {
+      return res.json({
+        success: false,
+        message: 'DATABASE_URL not set',
+        details: {
+          hasUrl: false
+        }
+      });
+    }
+
+    // Parse the URL to check its format
+    const urlInfo = {
+      hasUrl: true,
+      startsWithPostgresql: databaseUrl.startsWith('postgresql://'),
+      startsWithPostgres: databaseUrl.startsWith('postgres://'),
+      startsWithFile: databaseUrl.startsWith('file:'),
+      startsWithSqlite: databaseUrl.startsWith('sqlite:'),
+      length: databaseUrl.length,
+      firstPart: databaseUrl.substring(0, 20) + '...',
+      containsHost: databaseUrl.includes('@'),
+      containsPort: databaseUrl.includes(':5432') || databaseUrl.includes(':5433'),
+      containsSslMode: databaseUrl.includes('sslmode='),
+    };
+
+    // Try to connect and get database info
+    let connectionTest = null;
+    try {
+      await prisma.$connect();
+      connectionTest = {
+        canConnect: true,
+        error: null
+      };
+
+      // Try a simple query to test the connection type
+      try {
+        const result = await prisma.$queryRaw`SELECT version()`;
+        connectionTest.databaseVersion = result[0]?.version || 'Unknown';
+        connectionTest.isPostgreSQL = result[0]?.version?.includes('PostgreSQL') || false;
+      } catch (queryError) {
+        connectionTest.queryError = queryError.message;
+      }
+
+      await prisma.$disconnect();
+    } catch (connectError) {
+      connectionTest = {
+        canConnect: false,
+        error: connectError.message
+      };
+    }
+
+    res.json({
+      success: true,
+      message: 'Database URL analysis',
+      urlInfo,
+      connectionTest,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error checking database URL',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 module.exports = router;
