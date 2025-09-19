@@ -800,4 +800,73 @@ router.get('/check-users', async (req, res) => {
   }
 });
 
+// Create admin@glamelegance.com user
+router.post('/create-glam-admin', async (req, res) => {
+  try {
+    const bcrypt = require('bcrypt');
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: 'admin' },
+          { email: 'admin@glamelegance.com' }
+        ]
+      }
+    });
+
+    if (existingUser) {
+      return res.json({
+        success: true,
+        message: 'Admin user already exists',
+        user: {
+          username: existingUser.username,
+          email: existingUser.email,
+          name: existingUser.name,
+          role: existingUser.role
+        }
+      });
+    }
+
+    // Create new admin user
+    const hashedPassword = await bcrypt.hash('admin123', 10);
+
+    const user = await prisma.user.create({
+      data: {
+        username: 'admin',
+        email: 'admin@glamelegance.com',
+        password: hashedPassword,
+        name: 'Glam Elegance Admin',
+        role: 'admin',
+        isActive: true
+      }
+    });
+
+    res.json({
+      success: true,
+      message: 'Admin user created successfully',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      },
+      credentials: {
+        username: 'admin',
+        email: 'admin@glamelegance.com',
+        password: 'admin123'
+      }
+    });
+
+  } catch (error) {
+    console.error('Error creating admin user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create admin user',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
