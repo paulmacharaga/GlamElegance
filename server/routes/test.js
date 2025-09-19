@@ -580,4 +580,21 @@ router.get('/check-tables', async (req, res) => {
   }
 });
 
+// Test hierarchical services route
+router.get('/hierarchical-test', async (req, res) => {
+  try {
+    res.json({
+      success: true,
+      message: 'Hierarchical services route is working',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error in hierarchical test',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
