@@ -440,4 +440,43 @@ router.get('/database-url-check', async (req, res) => {
   }
 });
 
+// Force regenerate Prisma client
+router.post('/regenerate-prisma', async (req, res) => {
+  try {
+    const { exec } = require('child_process');
+    const path = require('path');
+
+    // Change to server directory and regenerate Prisma client
+    const serverDir = path.join(process.cwd(), 'server');
+
+    exec('cd server && npx prisma generate', (error, stdout, stderr) => {
+      if (error) {
+        console.error('Prisma generate error:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Failed to regenerate Prisma client',
+          error: error.message,
+          stderr: stderr
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Prisma client regenerated successfully',
+        stdout: stdout,
+        stderr: stderr,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error regenerating Prisma client',
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 module.exports = router;
