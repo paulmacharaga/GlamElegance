@@ -21,6 +21,7 @@ const staffRoutes = require('./routes/staff');
 const staffAuthRoutes = require('./routes/staff-auth');
 const loyaltyRoutes = require('./routes/loyalty');
 const customerRoutes = require('./routes/customers');
+const hierarchicalServicesRoutes = require('./routes/hierarchical-services');
 const testRoutes = require('./routes/test');
 
 // Environment variables are already loaded by load-env.js
@@ -42,13 +43,14 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
-    // In production, allow the same domain
+    // In production, allow the main domain and deployment URLs
     const allowedOrigins = [
       'http://localhost:3000',
-      'https://glam-elegance.vercel.app',
+      'https://glam-elegance.vercel.app', // Main production URL
       'https://glam-elegance-lmo57cg84-paul-makos-projects.vercel.app',
       'https://glam-elegance-8cbwgd1by-paul-makos-projects.vercel.app',
-      process.env.CLIENT_URL
+      process.env.CLIENT_URL,
+      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
     ].filter(Boolean);
 
     if (allowedOrigins.includes(origin)) {
@@ -135,6 +137,7 @@ app.use('/api/qr', qrRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/google-token', googleTokenRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/hierarchical-services', hierarchicalServicesRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/staff-auth', staffAuthRoutes);
 app.use('/api/loyalty', loyaltyRoutes);

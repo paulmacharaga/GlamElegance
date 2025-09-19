@@ -21,20 +21,57 @@ model User {
   @@map("users")
 }
 
+model ServiceCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  icon        String?  // Icon name or URL for UI
+  displayOrder Int     @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  services Service[]
+
+  @@map("service_categories")
+}
+
 model Service {
   id          String   @id @default(cuid())
   name        String
   description String?
-  duration    Int
-  price       Float
+  categoryId  String
+  basePrice   Float    // Base price for the service
+  baseDuration Int     // Base duration in minutes
   isActive    Boolean  @default(true)
+  displayOrder Int     @default(0)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
+  updatedAt   DateTime @updatedAt
 
-  // Relations
-  bookings    Booking[]
+  category ServiceCategory @relation(fields: [categoryId], references: [id])
+  variants ServiceVariant[]
+  bookings Booking[]
 
   @@map("services")
+}
+
+model ServiceVariant {
+  id          String   @id @default(cuid())
+  serviceId   String
+  name        String   // e.g., "30 minutes", "Full Color", "With French Tips"
+  description String?
+  type        String   // e.g., "duration", "intensity", "addon"
+  priceModifier Float  // Amount to add/subtract from base price
+  durationModifier Int @default(0) // Minutes to add/subtract from base duration
+  isActive    Boolean  @default(true)
+  displayOrder Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  bookingVariants BookingServiceVariant[]
+
+  @@map("service_variants")
 }
 
 model Staff {
@@ -57,6 +94,20 @@ model Staff {
   @@map("staff")
 }
 
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings Booking[]
+
+  @@map("customers")
+}
+
 model Booking {
   id            String   @id @default(cuid())
   customerName  String
@@ -69,15 +120,30 @@ model Booking {
   bookingTime   String
   status        String   @default("pending")
   notes         String?
+  totalPrice    Float?   // Calculated total price including variants
+  totalDuration Int?     // Calculated total duration including variants
   createdAt     DateTime @default(now())
-  updatedAt     DateTime @default(now()) @updatedAt
+  updatedAt     DateTime @updatedAt
 
   // Relations
   customer      Customer? @relation(fields: [customerId], references: [id])
   service       Service   @relation(fields: [serviceId], references: [id])
   staff         Staff?    @relation(fields: [staffId], references: [id])
+  serviceVariants BookingServiceVariant[]
 
   @@map("bookings")
+}
+
+model BookingServiceVariant {
+  id        String @id @default(cuid())
+  bookingId String
+  variantId String
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  variant ServiceVariant @relation(fields: [variantId], references: [id])
+
+  @@unique([bookingId, variantId])
+  @@map("booking_service_variants")
 }
 
 model Feedback {

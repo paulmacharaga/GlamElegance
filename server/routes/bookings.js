@@ -48,7 +48,7 @@ router.post('/', upload.fields([
   body('customerName').notEmpty().withMessage('Customer name is required'),
   body('customerEmail').isEmail().withMessage('Valid email is required'),
   body('customerPhone').notEmpty().withMessage('Phone number is required'),
-  body('service').notEmpty().withMessage('Service is required'),
+  body('serviceId').notEmpty().withMessage('Service ID is required'),
   body('appointmentDate').isISO8601().withMessage('Valid date is required'),
   body('appointmentTime').notEmpty().withMessage('Appointment time is required')
 ], async (req, res) => {
@@ -62,26 +62,51 @@ router.post('/', upload.fields([
       customerName,
       customerEmail,
       customerPhone,
-      service,
-      appointmentDate,
-      appointmentTime,
+      serviceId,
+      variantIds = [],
+      bookingDate,
+      bookingTime,
+      totalPrice,
+      totalDuration,
       notes,
       joinLoyalty
     } = req.body;
 
     // Check if service exists and is active
     const serviceDoc = await prisma.service.findUnique({
-      where: { id: service }
+      where: { id: serviceId, isActive: true },
+      include: {
+        category: true,
+        variants: {
+          where: { isActive: true }
+        }
+      }
     });
+
     if (!serviceDoc) {
       return res.status(400).json({ message: 'Service not found or inactive' });
+    }
+
+    // Validate selected variants belong to this service
+    if (variantIds.length > 0) {
+      const validVariants = await prisma.serviceVariant.findMany({
+        where: {
+          id: { in: variantIds },
+          serviceId: serviceId,
+          isActive: true
+        }
+      });
+
+      if (validVariants.length !== variantIds.length) {
+        return res.status(400).json({ message: 'Invalid service variants selected' });
+      }
     }
 
     // Check for existing booking at same time
     const existingBooking = await prisma.booking.findFirst({
       where: {
-        bookingDate: new Date(appointmentDate),
-        bookingTime: appointmentTime,
+        bookingDate: new Date(bookingDate),
+        bookingTime: bookingTime,
         status: { in: ['pending', 'confirmed'] }
       }
     });
@@ -120,15 +145,29 @@ router.post('/', upload.fields([
           customerName,
           customerEmail,
           customerPhone,
-          service: serviceDoc.name,
-          bookingDate: new Date(appointmentDate),
-          bookingTime: appointmentTime,
+          serviceId: serviceDoc.id,
+          bookingDate: new Date(bookingDate),
+          bookingTime: bookingTime,
           status: 'pending',
           notes: notes || '',
+          totalPrice: totalPrice || serviceDoc.basePrice,
+          totalDuration: totalDuration || serviceDoc.baseDuration,
           inspirationImages: inspirationImages.length > 0 ? inspirationImages : undefined,
           currentHairImages: Object.keys(currentHairImages).length > 0 ? currentHairImages : undefined
         }
       });
+
+      // Create booking service variant relationships
+      if (variantIds.length > 0) {
+        const bookingVariants = variantIds.map(variantId => ({
+          bookingId: newBooking.id,
+          variantId: variantId
+        }));
+
+        await prisma.bookingServiceVariant.createMany({
+          data: bookingVariants
+        });
+      }
 
       // Handle loyalty program opt-in if selected
       if (joinLoyalty === 'true' || joinLoyalty === true) {
@@ -560,5 +599,93 @@ router.get('/availability', async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+// Get available time slots for a specific date considering service duration
+router.get('/available-slots', async (req, res) => {
+  try {
+    const { date, duration = 60 } = req.query;
+
+    if (!date) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date is required'
+      });
+    }
+
+    const requestedDate = new Date(date);
+    if (isNaN(requestedDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid date format'
+      });
+    }
+
+    // Get all bookings for the requested date
+    const existingBookings = await prisma.booking.findMany({
+      where: {
+        bookingDate: requestedDate,
+        status: { in: ['pending', 'confirmed'] }
+      },
+      select: {
+        bookingTime: true,
+        totalDuration: true
+      }
+    });
+
+    // Define business hours (9 AM to 6 PM)
+    const businessStart = 9 * 60; // 9:00 AM in minutes
+    const businessEnd = 18 * 60;  // 6:00 PM in minutes
+    const slotInterval = 30; // 30-minute intervals
+    const serviceDuration = parseInt(duration);
+
+    // Generate all possible time slots
+    const allSlots = [];
+    for (let time = businessStart; time <= businessEnd - serviceDuration; time += slotInterval) {
+      const hours = Math.floor(time / 60);
+      const minutes = time % 60;
+      const timeString = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      allSlots.push({
+        time: timeString,
+        startMinutes: time,
+        endMinutes: time + serviceDuration
+      });
+    }
+
+    // Filter out slots that conflict with existing bookings
+    const availableSlots = allSlots.filter(slot => {
+      return !existingBookings.some(booking => {
+        const bookingStartMinutes = timeStringToMinutes(booking.bookingTime);
+        const bookingEndMinutes = bookingStartMinutes + (booking.totalDuration || 60);
+
+        // Check if there's any overlap
+        return (
+          (slot.startMinutes < bookingEndMinutes) &&
+          (slot.endMinutes > bookingStartMinutes)
+        );
+      });
+    });
+
+    res.json({
+      success: true,
+      slots: availableSlots.map(slot => slot.time),
+      date: date,
+      duration: serviceDuration
+    });
+
+  } catch (error) {
+    console.error('Error getting available slots:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get available slots',
+      error: error.message
+    });
+  }
+});
+
+// Helper function to convert time string to minutes
+function timeStringToMinutes(timeString) {
+  const [hours, minutes] = timeString.split(':').map(Number);
+  return hours * 60 + minutes;
+}
 
 module.exports = router;
